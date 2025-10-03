@@ -1,0 +1,11 @@
+.idea/
+
+**/*.db
+**/*.json
+
+**/*_test.go
+
+# 忽略 example 文件夹下的所有内容
+front/*
+# 但是不忽略 dist 文件夹
+!front/dist/
