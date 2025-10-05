@@ -1,8 +1,8 @@
-package web
+package http
 
 import (
-	"YH-FireWall/internal/mapper"
-	"YH-FireWall/internal/rule"
+	"YH-FireWall/internal/core/mapper"
+	"YH-FireWall/internal/core/rule"
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
@@ -16,8 +16,8 @@ func ping(c echo.Context) error {
 	return c.String(http.StatusOK, "pong")
 }
 
-func getAllRules(c echo.Context) error {
-	cfgs, err := mapper.GetAllRules()
+func getRules(c echo.Context) error {
+	cfgs, err := mapper.GetRules()
 	if err != nil {
 		return err
 	}
@@ -25,7 +25,7 @@ func getAllRules(c echo.Context) error {
 }
 
 func updateRule(c echo.Context) error {
-	cfg := new(rule.Config)
+	cfg := new(rule.Rule)
 	if err := c.Bind(cfg); err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func updateRule(c echo.Context) error {
 }
 
 func appendRule(c echo.Context) error {
-	cfg := new(rule.Config)
+	cfg := new(rule.Rule)
 	if err := c.Bind(cfg); err != nil {
 		return err
 	}

@@ -9,6 +9,25 @@ import (
 	"strings"
 )
 
+var protocolName2Protocol = map[string]layers.IPProtocol{}
+
+func init() {
+	// 可以扩展其他协议
+	for _, p := range []layers.IPProtocol{
+		layers.IPProtocolTCP,
+		layers.IPProtocolUDP,
+		layers.IPProtocolICMPv4,
+		layers.IPProtocolIGMP,
+		layers.IPProtocolSCTP,
+		layers.IPProtocolGRE,
+		layers.IPProtocolESP,
+		layers.IPProtocolAH,
+		layers.IPProtocolVRRP,
+	} {
+		protocolName2Protocol[strings.ToLower(string(p))] = p
+	}
+}
+
 func split(raw string) []string {
 	// 先统一用换行分割，再按逗号拆
 	parts := strings.FieldsFunc(raw, func(r rune) bool {
@@ -128,21 +147,11 @@ func parseProtocol(raw string) (map[layers.IPProtocol]struct{}, error) {
 	m := make(map[layers.IPProtocol]struct{})
 	for _, p := range split(raw) {
 		line := strings.TrimSpace(p)
-		line = strings.ToLower(line)
 		if line == "" {
 			continue
 		}
-		switch line {
-		case "tcp":
-			m[layers.IPProtocolTCP] = struct{}{}
-		case "udp":
-			m[layers.IPProtocolUDP] = struct{}{}
-		case "icmp":
-			m[layers.IPProtocolICMPv4] = struct{}{}
-			m[layers.IPProtocolICMPv6] = struct{}{}
-		case "igmp":
-			m[layers.IPProtocolIGMP] = struct{}{}
-		default:
+		if ptc, ok := protocolName2Protocol[strings.ToLower(line)]; ok {
+			m[ptc] = struct{}{}
 			continue
 		}
 	}

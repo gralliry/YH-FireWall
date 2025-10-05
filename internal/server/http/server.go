@@ -1,4 +1,4 @@
-package web
+package http
 
 import (
 	"errors"
@@ -21,7 +21,7 @@ func Start(address, username, password string) error {
 	// 设置跨域 // 使用 CORS 中间件
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"}, // 允许的域名，可以写具体域名
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
 		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
 	}))
 	// 设置 BasicAuth 中间件
@@ -33,16 +33,14 @@ func Start(address, username, password string) error {
 			return false, nil
 		}
 	}))
-	// 设置静态文件
-	e.Static("/", "front/dist")
 	// 设置全局错误处理
 	e.HTTPErrorHandler = handleGlobalError
 	// 必须放前面，提高api匹配优先级
-	api := e.Group("/api")
+	api := e.Group("/server")
 	// 注册api
 	api.GET("/ping", ping)
 	//
-	api.GET("/rule", getAllRules)
+	api.GET("/rule", getRules)
 	api.POST("/rule", appendRule)
 	api.PUT("/rule", updateRule)
 	api.DELETE("/rule", deleteRule)
