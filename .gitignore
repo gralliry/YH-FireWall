@@ -6,9 +6,9 @@
 **/*_test.go
 
 # 忽略 example 文件夹下的所有内容
-front/*
+yfw-front/*
 # 但是不忽略 dist 文件夹
-!front/dist/
+!yfw-front/dist/
 
 build/
 target/
