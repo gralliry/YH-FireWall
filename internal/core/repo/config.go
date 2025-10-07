@@ -3,8 +3,8 @@ package repo
 import (
 	"YH-FireWall/internal/core/rule"
 	"encoding/json"
-	"fmt"
 	"os"
+	"path"
 	"syscall"
 	"time"
 )
@@ -20,14 +20,19 @@ type Config struct {
 }
 
 func Load(filepath string) (*Config, error) {
-	f, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0644)
+	// 确保目录存在
+	if err := os.MkdirAll(path.Dir(filepath), 0755); err != nil {
+		return nil, err
+	}
+	// 打开文件
+	file, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return nil, fmt.Errorf("打开文件失败: %w", err)
+		return nil, err
 	}
 
-	if err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		_ = f.Close()
-		return nil, fmt.Errorf("锁定文件失败: %w", err)
+	if err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		_ = file.Close()
+		return nil, err
 	}
 
 	cfg := Config{
@@ -37,12 +42,20 @@ func Load(filepath string) (*Config, error) {
 		DefaultAccept: true,
 
 		filepath: filepath,
-		file:     f,
+		file:     file,
 	}
 
-	decoder := json.NewDecoder(f)
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() == 0 {
+		return &cfg, nil
+	}
+
+	decoder := json.NewDecoder(file)
 	if err = decoder.Decode(&cfg); err != nil {
-		return nil, fmt.Errorf("解析 JSON 失败: %w", err)
+		return nil, err
 	}
 
 	return &cfg, nil
@@ -50,16 +63,16 @@ func Load(filepath string) (*Config, error) {
 
 func (c *Config) Store() error {
 	if _, err := c.file.Seek(0, 0); err != nil {
-		return fmt.Errorf("重置文件指针失败: %w", err)
+		return err
 	}
 	if err := c.file.Truncate(0); err != nil {
-		return fmt.Errorf("清空文件失败: %w", err)
+		return err
 	}
 
 	encoder := json.NewEncoder(c.file)
 	encoder.SetIndent("", "    ")
 	if err := encoder.Encode(c); err != nil {
-		return fmt.Errorf("写入配置失败: %w", err)
+		return err
 	}
 
 	return c.file.Sync()

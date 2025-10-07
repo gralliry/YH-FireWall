@@ -9,3 +9,6 @@
 front/*
 # 但是不忽略 dist 文件夹
 !front/dist/
+
+build/
+target/

@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	ConfigPath = ".yfw.json"
+	ConfigPath = "/etc/yfw/config.json"
+	Version    = "v1.0.0"
 )
 
 var (

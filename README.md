@@ -1,63 +1,123 @@
-# Y-Firewall
+<h1 style="text-align:center;">YH-Firewall</h1>
 
-a super-lighning firewall based on iptables by go
+**YH-Firewall** is a super-lightweight firewall written in Go, leveraging `iptables` and `NFQUEUE` to provide flexible
+packet filtering and management.
 
-```shell
-sudo iptables -I INPUT -j NFQUEUE --queue-num 1
-sudo iptables -I OUTPUT -j NFQUEUE --queue-num 1
-sudo iptables -I FORWARD -j NFQUEUE --queue-num 1
+---
+
+## Features
+
+- Lightweight and high-performance, written in pure Go
+- Works with `iptables` to intercept packets via NFQUEUE
+- Support for custom rules, groups, and priority-based filtering
+- Easy to enable/disable rules and groups dynamically
+- Web-based control panel (optional)
+
+---
+
+## Build
+
+```bash
+sudo go build -o yfw ./cmd 
+
+sudo cp yfw /usr/local/bin/
+
+sudo chmod +x /usr/local/bin/yfw
 ```
 
-```shell
-sudo iptables -t raw -F
-sudo iptables -t mangle -F
-sudo iptables -t nat -F
-sudo iptables -t filter -F
+```bash
+go install github.com/mitchellh/gox@latest
 
-sudo iptables -t raw -X
-sudo iptables -t mangle -X
-sudo iptables -t nat -X
-sudo iptables -t filter -X
+version='v1.0.0'
 
-sudo iptables -P INPUT ACCEPT
-sudo iptables -P OUTPUT ACCEPT
-sudo iptables -P FORWARD ACCEPT
+go tool dist list
+
+gox -osarch="linux/386 linux/amd64 linux/arm linux/arm64 linux/loong64 linux/mips linux/mips64 linux/mips64le linux/mipsle linux/ppc64 linux/ppc64le linux/riscv64 linux/s390x" -output="build/yfw-{{.OS}}-{{.Arch}}-$version" ./cmd
 ```
 
-```shell
-# raw 表：最早阶段
-sudo iptables -t raw -A PREROUTING  -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
-sudo iptables -t raw -A OUTPUT      -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
+## Install
 
-# mangle 表：处理前后所有阶段
-sudo iptables -t mangle -A PREROUTING  -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
-sudo iptables -t mangle -A INPUT       -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
-sudo iptables -t mangle -A FORWARD     -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
-sudo iptables -t mangle -A OUTPUT      -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
-sudo iptables -t mangle -A POSTROUTING -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
+Make sure you have Go installed (`>=1.20`) and `iptables` available.
 
-# filter 表（常用表）
-sudo iptables -t filter -A INPUT   -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
-sudo iptables -t filter -A OUTPUT  -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
-sudo iptables -t filter -A FORWARD -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
+```bash
+# Clone the repository
+git clone https://github.com/gralliry/YH-Firewall.git
 
-# nat 表（做地址转换前后）
-sudo iptables -t nat -A PREROUTING  -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
-sudo iptables -t nat -A OUTPUT      -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
-sudo iptables -t nat -A POSTROUTING -j NFQUEUE --queue-num 0 -m comment --comment "yfw"
+cd YH-Firewall
+
+# Build the project
+go build -o yfw ./cmd
 ```
 
-```shell
-# 遍历所有表和链，删除 comment 为 yfw 的规则
-for table in raw mangle filter nat; do
-  for chain in $(sudo iptables -t $table -S | grep '^-A' | awk '{print $2}'); do
-    while sudo iptables -t $table -C $chain -m comment --comment "yfw" &>/dev/null; do
-      sudo iptables -t $table -D $chain -m comment --comment "yfw"
-    done
-  done
-done
+## Usage
+
+Run the firewall service:
+
+```bash
+# Start the core service
+yfw start
+
+# Stop the service
+yfw stop
+
+# Check status
+yfw status
 ```
 
-```shell
-sudo iptables -L -n -v
+## Web Interface
+
+```bash
+# Start web interface: yfw web start <address> <username> <password>
+yfw web start 0.0.0.0:8080 admin admin123
+
+# Stop web interface
+yfw web stop
+
+# Check web interface status
+yfw web status
 ```
+
+## Rule Management
+
+```bash
+# List all rules
+yfw rule list
+
+# Get a specific rule
+yfw rule list <rule_id>
+
+# Add a new rule
+yfw rule add '{"src_net":"0.0.0.0/0","tar_port":"80"}'
+
+# Remove a rule
+yfw rule remove <rule_id>
+
+# Change a rule
+yfw rule change <rule_id> '{"src_net":"192.168.1.0/24"}'
+
+# Enable/disable a rule
+yfw rule enable <rule_id>
+yfw rule disable <rule_id>
+```
+
+## Group Management
+
+```bash
+# Enable/disable a group
+yfw group enable <group_name>
+yfw group disable <group_name>
+```
+
+## License
+
+MIT License © Gralliry
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request for bug fixes or new features.
+
+## Notes
+
+* Requires __root__ privileges to manipulate iptables rules.
+
+* Works best on Linux environments with iptables and libnetfilter_queue installed.

@@ -63,6 +63,9 @@ func handleArgs(args []string) string {
 	case "h", "help":
 		// yfw h/help
 		return fmt.Sprintf(tips, args[0])
+	case "v", "version":
+		// yfw h/help
+		return core.Version
 	default:
 		return fmt.Sprintf("Unknown Command {%s}. Use help.", args[1])
 	}
