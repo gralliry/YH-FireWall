@@ -35,7 +35,12 @@ func main() {
 		}
 		// 阻塞主进程，等待信号
 		<-core.Done()
-		//
+		// 关闭服务
+		if core.IsRunning() {
+			if err := core.Close(); err != nil {
+				log.Println("Core service failed to stop:", err)
+			}
+		}
 		if err := unix.Close(); err != nil {
 			log.Println("Unix service failed to stop:", err)
 		}

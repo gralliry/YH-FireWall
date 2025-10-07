@@ -1,6 +1,7 @@
 package core
 
 import (
+	"YH-FireWall/internal/core/cmd"
 	"YH-FireWall/internal/core/manager"
 	"YH-FireWall/internal/core/queue"
 	"YH-FireWall/internal/core/repo"
@@ -23,7 +24,7 @@ var (
 	cancel context.CancelFunc
 
 	isRunning bool
-	mutex     sync.Mutex
+	mutex     sync.RWMutex
 )
 
 func Start(parent context.Context) (err error) {
@@ -62,6 +63,14 @@ func Start(parent context.Context) (err error) {
 	if err = queue.Start(ctx, cfg.QueueNum, cfg.DefaultAccept); err != nil {
 		return err
 	}
+	// 删除队列
+	if err = cmd.Unset(cfg.QueueNum); err != nil {
+		return err
+	}
+	// 设置队列
+	if err = cmd.Set(cfg.QueueNum); err != nil {
+		return err
+	}
 	isRunning = true
 	return nil
 }
@@ -84,6 +93,10 @@ func Close() error {
 	if err := queue.Close(); err != nil {
 		errs = append(errs, err)
 	}
+	// 删除队列
+	if err := cmd.Unset(cfg.QueueNum); err != nil {
+		errs = append(errs, err)
+	}
 	// 更新时间
 	cfg.UpdateDate = time.Now().Format("2006-01-02 15:04:05")
 	// 存储配置文件
@@ -96,4 +109,10 @@ func Close() error {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
+}
+
+func IsRunning() bool {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	return isRunning
 }

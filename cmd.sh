@@ -12,18 +12,7 @@ case "$ACTION" in
     sudo iptables -I FORWARD -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
     ;;
 
-  clear)
-    echo "[*] 清空所有表规则"
-    for table in raw mangle nat filter; do
-      sudo iptables -t $table -F
-      sudo iptables -t $table -X
-    done
-    sudo iptables -P INPUT ACCEPT
-    sudo iptables -P OUTPUT ACCEPT
-    sudo iptables -P FORWARD ACCEPT
-    ;;
-
-  remove)
+  unset)
     echo "[*] 删除所有带 yfw 注释的规则"
     sudo iptables -D INPUT   -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
     sudo iptables -D OUTPUT  -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
@@ -36,7 +25,7 @@ case "$ACTION" in
     ;;
 
   *)
-    echo "Usage: $0 {set|clear|remove|list} [queue-num]"
+    echo "Usage: $0 {set|unset|list} [queue-num]"
     exit 1
     ;;
 esac
