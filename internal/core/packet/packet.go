@@ -23,6 +23,9 @@ type Packet struct {
 }
 
 func Parse(a *nfqueue.Attribute) (*Packet, error) {
+	if a == nil {
+		return nil, fmt.Errorf("invalid attribute")
+	}
 	p := &Packet{}
 	if a.PacketID == nil {
 		return nil, fmt.Errorf("invalid packet")
@@ -32,7 +35,7 @@ func Parse(a *nfqueue.Attribute) (*Packet, error) {
 		return p, fmt.Errorf("invalid payload")
 	}
 	// 使用 gopacket 解析 Payload
-	rawpacket := gopacket.NewPacket(*a.Payload, layers.LayerTypeEthernet, gopacket.Default)
+	rawpacket := gopacket.NewPacket(*a.Payload, layers.LayerTypeIPv4, gopacket.Default)
 	// 获取 IPv4 或 IPv6 地址
 	if ip4 := rawpacket.Layer(layers.LayerTypeIPv4); ip4 != nil {
 		ip := ip4.(*layers.IPv4)

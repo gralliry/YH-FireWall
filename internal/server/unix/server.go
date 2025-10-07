@@ -1,22 +1,19 @@
 package unix
 
 import (
-	"bufio"
 	"errors"
+	"github.com/google/shlex"
+	"log"
 	"net"
 	"os"
 	"strings"
 )
 
-var (
-	listener   net.Listener
-	socketPath string = "/tmp/firewall.sock"
-)
+const socketPath = "/tmp/firewall.sock"
 
-func Start(path string) (err error) {
-	if path != "" {
-		socketPath = path
-	}
+var listener net.Listener
+
+func Start() (err error) {
 	// 删除残留的 socket 文件
 	_ = os.Remove(socketPath)
 	// 监听 Unix 域套接字
@@ -32,38 +29,45 @@ func Close() error {
 	if listener == nil {
 		return nil
 	}
-	return listener.Close()
+	if err := listener.Close(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func acceptConn() {
 	for {
 		conn, err := listener.Accept()
-		if err != nil {
-			if errors.Is(err, net.ErrClosed) {
-				break
-			} else {
-				continue
-			}
+		if err == nil {
+			go handleConn(conn)
+		} else if errors.Is(err, net.ErrClosed) {
+			break
 		}
-		go handleConn(conn)
 	}
 }
 
 func handleConn(conn net.Conn) {
-	defer conn.Close()
-
-	reader := bufio.NewReader(conn)
-	cmdLine, _ := reader.ReadString(byte(0))
-	cmd := strings.TrimSpace(cmdLine)
-
-	switch cmd {
-	case "status":
-		_, _ = conn.Write([]byte("running\n"))
-	case "stop":
-		_, _ = conn.Write([]byte("stopping...\n"))
-		os.Remove(socketPath)
-		os.Exit(0)
-	default:
-		conn.Write([]byte("unknown command\n"))
+	defer func() { _ = conn.Close() }()
+	// 创建缓冲区
+	cmdBytes := make([]byte, 1024)
+	// 读取命令
+	n, err := conn.Read(cmdBytes)
+	if err != nil {
+		_, _ = conn.Write([]byte(err.Error()))
+		return
 	}
+	// 处理命令(这里要截取，不如会取到后面的未写入字符)
+	cmdStr := strings.TrimSpace(string(cmdBytes[:n]))
+	// 解析命令
+	args, err := shlex.Split(cmdStr)
+	if err != nil {
+		_, _ = conn.Write([]byte(err.Error()))
+		return
+	}
+	//
+	log.Printf("Args(%d): %v", len(args), args)
+	// 解析并执行命令
+	result := handleArgs(args) + "\n"
+	// 返回结果
+	_, _ = conn.Write([]byte(result))
 }

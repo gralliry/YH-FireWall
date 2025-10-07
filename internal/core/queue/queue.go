@@ -1,97 +1,107 @@
 package queue
 
 import (
-	"YH-FireWall/internal/core/group"
+	"YH-FireWall/internal/core/manager"
 	"YH-FireWall/internal/core/packet"
 	"context"
 	"github.com/florianl/go-nfqueue"
-	"log"
+	"github.com/mdlayher/netlink"
 	"time"
 )
 
-type Queue struct {
-	nfq *nfqueue.Nfqueue
-
+var (
+	nfq    *nfqueue.Nfqueue
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	group *group.Group
+	defaultAccept = true
+)
 
-	attributes chan *nfqueue.Attribute // 缓存队列
-}
-
-func New(g *group.Group) (*Queue, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	q := &Queue{
-		ctx:        ctx,
-		cancel:     cancel,
-		group:      g,
-		attributes: make(chan *nfqueue.Attribute, 2048),
-	}
+func Start(parent context.Context, num uint16, accept bool) (err error) {
+	ctx, cancel = context.WithCancel(parent)
+	//
+	defaultAccept = accept
 	// 打开队列
-	if nf, err := nfqueue.Open(&nfqueue.Config{
-		NfQueue:      g.Qnum,
+	nfq, err = nfqueue.Open(&nfqueue.Config{
+		NfQueue:      num,
 		MaxPacketLen: 2048,
 		MaxQueueLen:  2048,
 		Copymode:     nfqueue.NfQnlCopyPacket,
-		WriteTimeout: 15 * time.Millisecond,
-	}); err != nil {
-		return nil, err
-	} else {
-		q.nfq = nf
+		WriteTimeout: 150 * time.Millisecond,
+	})
+	// Avoid receiving ENOBUFS errors.
+	if err = nfq.SetOption(netlink.NoENOBUFS, true); err != nil {
+		return err
 	}
 	// 注册处理函数
-	if err := q.nfq.RegisterWithErrorFunc(
-		ctx,
-		func(a nfqueue.Attribute) int {
-			select {
-			case q.attributes <- &a:
-				return nfqueue.NfStolen
-			default:
-				return nfqueue.NfDrop
-			}
-		},
-		func(e error) int {
-			return nfqueue.NfDrop
-		},
-	); err != nil {
-		return nil, err
+	if err = nfq.RegisterWithErrorFunc(ctx, handleAttribute, handleError); err != nil {
+		return err
 	}
-	return q, nil
+	return nil
 }
 
-func (q *Queue) Close() error {
-	q.cancel()
-	return q.nfq.Close()
+func Close() error {
+	cancel()
+	return nfq.Close()
 }
 
-func (q *Queue) handle() {
-	for {
-		select {
-		case <-q.ctx.Done():
-			return
-		case a := <-q.attributes:
-			if a == nil {
-				continue
-			}
-			p, err := packet.Parse(a)
-			if err != nil {
-				if p != nil {
-					_ = q.nfq.SetVerdict(p.Id, nfqueue.NfDrop)
-				} else {
-					continue
-				}
-			}
-			// todo 打印包日志
-			log.Println(p)
-			// 匹配规则组
-			match, accept := q.group.Match(p)
-			// 匹配规则
-			if match && accept {
-				_ = q.nfq.SetVerdict(p.Id, nfqueue.NfAccept)
-			} else {
-				_ = q.nfq.SetVerdict(p.Id, nfqueue.NfDrop)
-			}
+func handleError(_ error) int {
+	return -1
+}
+
+func handleAttribute(a nfqueue.Attribute) int {
+	p, err := packet.Parse(&a)
+	if err != nil {
+		_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+		return 0
+	}
+	// 匹配规则组
+	match, accept := manager.Match(p)
+	// 匹配规则
+	if match {
+		if accept {
+			_ = nfq.SetVerdict(p.Id(), nfqueue.NfAccept)
+		} else {
+			_ = nfq.SetVerdict(p.Id(), nfqueue.NfDrop)
 		}
+	} else if defaultAccept {
+		_ = nfq.SetVerdict(p.Id(), nfqueue.NfAccept)
+	} else {
+		_ = nfq.SetVerdict(p.Id(), nfqueue.NfDrop)
 	}
+	return 0
 }
+
+//func handleAttribute(a nfqueue.Attribute) int {
+//	select {
+//	case attributes <- &a:
+//	default:
+//		_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+//	}
+//	return 0
+//}
+//
+//func handlePackets() {
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			return
+//		case a := <-attributes:
+//			p, err := packet.Parse(a)
+//			if err != nil {
+//				_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+//				break
+//			}
+//			// 打印包日志
+//			log.Println(p)
+//			// 匹配规则组
+//			match, accept := manager.Match(p)
+//			// 匹配规则
+//			if match && accept {
+//				_ = nfq.SetVerdict(p.Id(), nfqueue.NfAccept)
+//			} else {
+//				_ = nfq.SetVerdict(p.Id(), nfqueue.NfDrop)
+//			}
+//		}
+//	}
+//}
