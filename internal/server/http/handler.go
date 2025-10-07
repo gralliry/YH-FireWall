@@ -7,6 +7,10 @@ import (
 	"net/http"
 )
 
+func ping(c echo.Context) error {
+	return c.String(http.StatusOK, "pong")
+}
+
 func getRules(c echo.Context) error {
 	cfgs := core.GetRules()
 	return c.JSON(http.StatusOK, cfgs)

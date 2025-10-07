@@ -36,6 +36,7 @@ func Start(addr, user, pswd string) error {
 	}))
 	// 必须放前面，提高api匹配优先级
 	api := e.Group("/api")
+	api.GET("/ping", ping)
 	// 组内规则增删改
 	api.GET("/rule", getRules)
 	api.POST("/rule", appendRule)
