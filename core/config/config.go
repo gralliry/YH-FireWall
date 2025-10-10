@@ -13,9 +13,10 @@ type Queue struct {
 }
 
 type Web struct {
-	Address  string `json:"address"`
-	User     string `json:"user"`
-	Password string `json:"password"`
+	Address           string `json:"address"`
+	BasicAuthUser     string `json:"basic_auth_user"`
+	BasicAuthPassword string `json:"basic_auth_password"`
+	StaticDir         string `json:"static_dir"`
 }
 
 type Unix struct {
@@ -37,9 +38,10 @@ func DefaultConfig() *Config {
 			Accept: true,
 		},
 		Web: Web{
-			Address:  ":8080",
-			User:     "",
-			Password: "",
+			Address:           ":8080",
+			BasicAuthUser:     "",
+			BasicAuthPassword: "",
+			StaticDir:         "front/dist",
 		},
 		Unix: Unix{
 			Path: "/tmp/firewall.sock",

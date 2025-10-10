@@ -30,18 +30,16 @@ func Start(cfg config.Web, handler Handler) error {
 	e.HideBanner = true
 	// 日志级别设置为OFF，关闭echo官方日志输出
 	e.Logger.SetOutput(io.Discard)
-	// 设置跨域 // 使用 CORS 中间件
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"}, // 允许的域名，可以写具体域名
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
-		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
-	}))
 	// 设置静态文件
-	e.Static("/", "front/dist")
+	if cfg.StaticDir != "" {
+		e.Static("/", cfg.StaticDir)
+	}
 	// 设置 BasicAuth 中间件
-	e.Use(middleware.BasicAuth(func(usr, pwd string, c echo.Context) (bool, error) {
-		return usr == cfg.User && pwd == cfg.Password, nil
-	}))
+	if cfg.BasicAuthPassword != "" {
+		e.Use(middleware.BasicAuth(func(usr, pwd string, c echo.Context) (bool, error) {
+			return usr == cfg.BasicAuthUser && pwd == cfg.BasicAuthPassword, nil
+		}))
+	}
 	// 必须放前面，提高api匹配优先级
 	api := e.Group("/api")
 	// 挂载接口

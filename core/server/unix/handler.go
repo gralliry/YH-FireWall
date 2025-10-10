@@ -1,6 +1,7 @@
 package unix
 
 import (
+	"YH-FireWall/core/config"
 	"YH-FireWall/core/rule"
 	"encoding/json"
 	"fmt"
@@ -25,6 +26,8 @@ type Handler interface {
 
 	EnableRule(id string, enable bool) bool
 	EnableGroup(group string, enable bool) bool
+
+	GetConfig() *config.Config
 }
 
 var handler Handler
@@ -52,7 +55,9 @@ Commands:
     - g/group
         - e/enable  {group}
         - d/disable {group}
+    - c/cfg/config
     - h/help       Display this help message
+    - v/version
 `
 
 func handleArgs(args []string) string {
@@ -80,6 +85,12 @@ func handleArgs(args []string) string {
 	case "g", "group":
 		// yfw g/group
 		return handleGroup(args[2:])
+	case "c", "cfg", "config":
+		if data, err := json.MarshalIndent(handler.GetConfig(), "", "    "); err != nil {
+			return err.Error()
+		} else {
+			return string(data)
+		}
 	case "h", "help":
 		// yfw h/help
 		return fmt.Sprintf(tips, args[0])
