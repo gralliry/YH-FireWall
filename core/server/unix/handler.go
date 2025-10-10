@@ -12,7 +12,7 @@ type Handler interface {
 
 	Stop() error
 
-	WebStart(address string, username string, password string)
+	WebStart() error
 	WebIsRunning() bool
 	WebStop() error
 
@@ -127,9 +127,11 @@ func handleWebStart(args []string) string {
 		return "Web Server Already Running"
 	}
 	if len(args) < 3 {
-		return "Usage: start {address} {username} {password}"
+		return "Usage: start"
 	}
-	handler.WebStart(args[0], args[1], args[2])
+	if err := handler.WebStart(); err != nil {
+		return fmt.Sprintf("Failed to start web server: %v", err)
+	}
 	return "Web Server has tried to start. Use status to check the status."
 }
 
@@ -137,11 +139,11 @@ func handleWebStop(_ []string) string {
 	// yfw web stop
 	if !handler.WebIsRunning() {
 		return "Web Server Not Running"
-	} else if err := handler.WebStop(); err != nil {
-		return fmt.Sprintf("Error: %v", err)
-	} else {
-		return "Web Server Stopped"
 	}
+	if err := handler.WebStop(); err != nil {
+		return fmt.Sprintf("Failed to stop web server: %v", err)
+	}
+	return "Web Server Stopped"
 }
 
 func handleWebStatus(_ []string) string {

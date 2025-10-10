@@ -16,8 +16,7 @@ import (
 func main() {
 	if len(os.Args) <= 1 {
 		// syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP
-		ctx, stop := signal.NotifyContext(context.Background(),
-			syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP)
+		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP)
 		defer stop()
 		// 初始化核心服务
 		core.Context = ctx

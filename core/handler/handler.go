@@ -8,16 +8,22 @@ import (
 	"YH-FireWall/core/server/unix"
 	"context"
 	"errors"
+	"github.com/jinzhu/copier"
 )
 
 type Handler struct {
+	Config  *config.Config
 	Context context.Context
 	Cancel  context.CancelFunc
 }
 
 func (h *Handler) Start() error {
 	// 默认启动 unix 监听
-	if err := unix.Start(h); err != nil {
+	if err := h.UnixStart(); err != nil {
+		return err
+	}
+	// 默认启动 http 监听
+	if err := h.WebStart(); err != nil {
 		return err
 	}
 	return nil
@@ -62,12 +68,14 @@ func (h *Handler) EnableGroup(group string, enable bool) bool {
 	return manager.EnableGroup(group, enable)
 }
 func (h *Handler) GetConfig() *config.Config {
-	return nil
+	d := &config.Config{}
+	_ = copier.Copy(d, h.Config)
+	return d
 }
 
 func (h *Handler) UnixStart() error {
 	// 启动 unix 监听 // 里面
-	return unix.Start(h)
+	return unix.Start(h.Config.Unix, h)
 }
 
 func (h *Handler) UnixIsRunning() bool {
@@ -78,8 +86,8 @@ func (h *Handler) UnixStop() error {
 	return unix.Close()
 }
 
-func (h *Handler) WebStart(address string, username string, password string) {
-	http.Start(h, address, username, password)
+func (h *Handler) WebStart() error {
+	return http.Start(h.Config.Web, h)
 }
 func (h *Handler) WebIsRunning() bool {
 	return http.IsRunning()

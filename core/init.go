@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"time"
 )
 
 var (
@@ -36,7 +37,7 @@ func Start() (err error) {
 		return err
 	}
 	// 初始化管理器
-	if err = manager.Init(cfg); err != nil {
+	if err = manager.Init(cfg.Rules); err != nil {
 		return err
 	}
 	// 启动队列
@@ -47,6 +48,7 @@ func Start() (err error) {
 	hder = &handler.Handler{
 		Context: Context,
 		Cancel:  Cancel,
+		Config:  cfg,
 	}
 	// 启动服务
 	if err = hder.Start(); err != nil {
@@ -62,9 +64,9 @@ func Close() error {
 		errs = append(errs, err)
 	}
 	// 同步规则
-	if err := manager.Sync(cfg); err != nil {
-		errs = append(errs, err)
-	}
+	cfg.Rules = manager.GetRules()
+	// 更新时间
+	cfg.LastUpdateDate = time.Now().Format("2006-01-02 15:04:05")
 	// 存储配置
 	if err := repo.Store(cfg); err != nil {
 		errs = append(errs, err)

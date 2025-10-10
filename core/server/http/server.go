@@ -1,6 +1,7 @@
 package http
 
 import (
+	"YH-FireWall/core/config"
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -16,9 +17,13 @@ var (
 	mutex     sync.RWMutex
 )
 
-func Start(handler Handler, addr, user, pswd string) {
+func Start(cfg config.Web, handler Handler) error {
 	mutex.Lock()
 	defer mutex.Unlock()
+	//
+	if isRunning {
+		return errors.New("web service already be started")
+	}
 	// 初始化 echo 实例
 	e := echo.New()
 	// 隐藏Banner
@@ -35,16 +40,19 @@ func Start(handler Handler, addr, user, pswd string) {
 	e.Static("/", "front/dist")
 	// 设置 BasicAuth 中间件
 	e.Use(middleware.BasicAuth(func(usr, pwd string, c echo.Context) (bool, error) {
-		return usr == user && pwd == pswd, nil
+		return usr == cfg.User && pwd == cfg.Password, nil
 	}))
 	// 必须放前面，提高api匹配优先级
 	api := e.Group("/api")
 	// 挂载接口
 	mount(api, handler)
 	// 启动服务器
-	go start(e, addr)
+	go start(e, cfg.Address)
 	//
+	server = e
 	isRunning = true
+	//
+	return nil
 }
 
 func Close() error {

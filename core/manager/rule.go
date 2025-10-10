@@ -2,20 +2,20 @@ package manager
 
 import (
 	"YH-FireWall/core/packet"
-	rule2 "YH-FireWall/core/rule"
+	"YH-FireWall/core/rule"
 	"fmt"
 	"sort"
 	"sync/atomic"
 )
 
 var (
-	ruleList        []*rule2.Rule
-	ruleMap         map[string]*rule2.Rule
+	ruleList        []*rule.Rule
+	ruleMap         map[string]*rule.Rule
 	ruleIsListDirty atomic.Bool
 )
 
 // AppendRule 添加或更新规则
-func AppendRule(ro *rule2.Option) error {
+func AppendRule(ro *rule.Option) error {
 	rc := ro.Default()
 	//
 	mutex.Lock()
@@ -30,7 +30,7 @@ func AppendRule(ro *rule2.Option) error {
 		rc.Refresh()
 	}
 	//
-	rr, err := rule2.Parse(*rc)
+	rr, err := rule.Parse(*rc)
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func AppendRule(ro *rule2.Option) error {
 }
 
 // UpdateRule 更新规则
-func UpdateRule(id string, ro *rule2.Option) error {
+func UpdateRule(id string, ro *rule.Option) error {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	//
@@ -105,7 +105,7 @@ func Match(p *packet.Packet) (bool, bool) {
 	return false, false
 }
 
-func GetRule(rid string) *rule2.Config {
+func GetRule(rid string) *rule.Config {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	rr, exists := ruleMap[rid]
@@ -115,14 +115,14 @@ func GetRule(rid string) *rule2.Config {
 	return rr.Unparse()
 }
 
-func GetRules() []rule2.Config {
+func GetRules() []rule.Config {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	return getRules()
 }
 
-func getRules() []rule2.Config {
-	rules := make([]rule2.Config, 0)
+func getRules() []rule.Config {
+	rules := make([]rule.Config, 0)
 	for _, r := range ruleList {
 		rules = append(rules, *r.Unparse())
 	}

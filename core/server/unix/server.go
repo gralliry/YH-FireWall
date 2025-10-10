@@ -1,6 +1,7 @@
 package unix
 
 import (
+	"YH-FireWall/core/config"
 	"errors"
 	"github.com/google/shlex"
 	"log"
@@ -10,24 +11,22 @@ import (
 	"sync"
 )
 
-const DefaultSocketPath = "/tmp/firewall.sock"
-
 var (
 	listener  net.Listener
 	isRunning bool
 	mutex     sync.RWMutex
 )
 
-func Start(h Handler) (err error) {
+func Start(cfg config.Unix, h Handler) (err error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if isRunning {
-		return errors.New("socket service already be started")
+		return errors.New("unix service already be started")
 	}
-	// 删除残留的 socket 文件
-	_ = os.Remove(DefaultSocketPath)
+	// 删除残留的 unix 文件
+	_ = os.Remove(cfg.Path)
 	// 监听 Unix 域套接字
-	listener, err = net.Listen("unix", DefaultSocketPath)
+	listener, err = net.Listen("unix", cfg.Path)
 	if err != nil {
 		return err
 	}
@@ -44,7 +43,7 @@ func Close() error {
 	defer mutex.Unlock()
 	//
 	if !isRunning {
-		return errors.New("socket not be started")
+		return errors.New("unix not be started")
 	}
 	isRunning = false
 	if err := listener.Close(); err != nil {
