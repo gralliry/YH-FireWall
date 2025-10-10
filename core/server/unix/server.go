@@ -7,32 +7,56 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 )
 
-const socketPath = "/tmp/firewall.sock"
+const DefaultSocketPath = "/tmp/firewall.sock"
 
-var listener net.Listener
+var (
+	listener  net.Listener
+	isRunning bool
+	mutex     sync.RWMutex
+)
 
-func Start() (err error) {
+func Start(h Handler) (err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	if isRunning {
+		return errors.New("socket service already be started")
+	}
 	// 删除残留的 socket 文件
-	_ = os.Remove(socketPath)
+	_ = os.Remove(DefaultSocketPath)
 	// 监听 Unix 域套接字
-	listener, err = net.Listen("unix", socketPath)
+	listener, err = net.Listen("unix", DefaultSocketPath)
 	if err != nil {
 		return err
 	}
+	// 设置处理函数
+	handler = h
+	isRunning = true
+	// 启动监听
 	go acceptConn()
 	return nil
 }
 
 func Close() error {
-	if listener == nil {
-		return nil
+	mutex.Lock()
+	defer mutex.Unlock()
+	//
+	if !isRunning {
+		return errors.New("socket not be started")
 	}
+	isRunning = false
 	if err := listener.Close(); err != nil {
 		return err
 	}
 	return nil
+}
+
+func IsRunning() bool {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	return isRunning
 }
 
 func acceptConn() {

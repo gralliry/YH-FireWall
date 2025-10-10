@@ -1,10 +1,11 @@
 package rule
 
-import "YH-FireWall/internal/core/pkg/sid"
+import (
+	"YH-FireWall/core/pkg/sid"
+)
 
 type Option struct {
 	// 不应该通过结构体中的id定位规则
-	// Id       *string `json:"id"`
 	Group    *string `json:"group"`
 	Comment  *string `json:"comment"`
 	SrcNet   *string `json:"src_net"`

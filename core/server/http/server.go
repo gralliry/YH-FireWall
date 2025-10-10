@@ -11,11 +11,14 @@ import (
 )
 
 var (
-	server *echo.Echo
-	mutex  sync.RWMutex
+	server    *echo.Echo
+	isRunning bool
+	mutex     sync.RWMutex
 )
 
-func Start(addr, user, pswd string) error {
+func Start(handler Handler, addr, user, pswd string) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	// 初始化 echo 实例
 	e := echo.New()
 	// 隐藏Banner
@@ -36,39 +39,21 @@ func Start(addr, user, pswd string) error {
 	}))
 	// 必须放前面，提高api匹配优先级
 	api := e.Group("/api")
-	api.GET("/ping", ping)
-	// 组内规则增删改
-	api.GET("/rule", getRules)
-	api.POST("/rule", appendRule)
-	api.PUT("/rule/:id", updateRule)
-	api.DELETE("/rule/:id", deleteRule)
-	// 规则启用禁用
-	api.PUT("/rule/:id/enable", enableRule)
-	api.PUT("/rule/:id/disable", disableRule)
-	// 组启用禁用
-	api.PUT("/group/enable", enableGroup)
-	api.PUT("/group/disable", disableGroup)
+	// 挂载接口
+	mount(api, handler)
 	// 启动服务器
-	go func(addr string) {
-		mutex.Lock()
-		server = e
-		mutex.Unlock()
-		if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Web接口服务运行失败: %v", err)
-		}
-		mutex.Lock()
-		server = nil
-		mutex.Unlock()
-	}(addr)
-	return nil
+	go start(e, addr)
+	//
+	isRunning = true
 }
 
 func Close() error {
 	mutex.Lock()
 	defer mutex.Unlock()
-	if server == nil {
-		return nil
+	if !isRunning {
+		return errors.New("web service not be stared")
 	}
+	isRunning = false
 	if err := server.Close(); err != nil {
 		return err
 	}
@@ -78,5 +63,11 @@ func Close() error {
 func IsRunning() bool {
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return server != nil
+	return isRunning
+}
+
+func start(e *echo.Echo, addr string) {
+	if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Println(err)
+	}
 }

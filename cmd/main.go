@@ -1,8 +1,7 @@
 package main
 
 import (
-	"YH-FireWall/internal/core"
-	"YH-FireWall/internal/server/unix"
+	"YH-FireWall/core"
 	"context"
 	"fmt"
 	"io"
@@ -16,33 +15,26 @@ import (
 
 func main() {
 	if len(os.Args) <= 1 {
-		// 启动核心服务
 		// syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP
 		ctx, stop := signal.NotifyContext(context.Background(),
 			syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP)
 		defer stop()
-
-		if err := core.Start(ctx); err != nil {
+		// 初始化核心服务
+		core.Context = ctx
+		core.Cancel = stop
+		// 启动核心服务
+		if err := core.Start(); err != nil {
 			log.Fatal("Core service failed to start:", err)
 		} else {
 			log.Println("Core service started successfully")
 		}
-		// 启动unix监听
-		if err := unix.Start(); err != nil {
-			log.Println("Unix service failed to start:", err)
-		} else {
-			log.Println("Unix service started successfully")
-		}
 		// 阻塞主进程，等待信号
-		<-core.Done()
-		// 关闭服务
-		if core.IsRunning() {
-			if err := core.Close(); err != nil {
-				log.Println("Core service failed to stop:", err)
-			}
-		}
-		if err := unix.Close(); err != nil {
-			log.Println("Unix service failed to stop:", err)
+		<-ctx.Done()
+		// 关闭服务 // 必须是阻塞的，不然可能没清除就守护线程被关闭
+		if err := core.Close(); err != nil {
+			log.Println("Core service failed to stop:", err)
+		} else {
+			log.Println("Core service stopped successfully")
 		}
 	} else {
 		// 运行客户端

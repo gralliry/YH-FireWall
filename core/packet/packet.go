@@ -9,8 +9,6 @@ import (
 )
 
 type Packet struct {
-	id uint32
-
 	srcIP net.IP
 	dstIP net.IP
 
@@ -27,10 +25,6 @@ func Parse(a *nfqueue.Attribute) (*Packet, error) {
 		return nil, fmt.Errorf("invalid attribute")
 	}
 	p := &Packet{}
-	if a.PacketID == nil {
-		return nil, fmt.Errorf("invalid packet")
-	}
-	p.id = *a.PacketID
 	if a.Payload == nil {
 		return p, fmt.Errorf("invalid payload")
 	}
@@ -76,9 +70,6 @@ func Parse(a *nfqueue.Attribute) (*Packet, error) {
 	return p, nil
 }
 
-func (p *Packet) Id() uint32 {
-	return p.id
-}
 func (p *Packet) SrcIP() net.IP {
 	return p.srcIP
 }

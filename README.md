@@ -121,3 +121,9 @@ Contributions are welcome! Please open an issue or submit a pull request for bug
 * Requires __root__ privileges to manipulate iptables rules.
 
 * Works best on Linux environments with iptables and libnetfilter_queue installed.
+
+## Other
+
+```bash
+sudo iptables -L -v -n
+```

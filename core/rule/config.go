@@ -1,7 +1,7 @@
 package rule
 
 import (
-	"YH-FireWall/internal/core/pkg/sid"
+	"YH-FireWall/core/pkg/sid"
 	"fmt"
 	"strings"
 )

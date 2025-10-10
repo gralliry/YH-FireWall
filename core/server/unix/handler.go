@@ -1,13 +1,33 @@
 package unix
 
 import (
-	"YH-FireWall/internal/core"
-	"YH-FireWall/internal/core/rule"
-	"YH-FireWall/internal/server/http"
+	"YH-FireWall/core/rule"
 	"encoding/json"
 	"fmt"
 	"strings"
 )
+
+type Handler interface {
+	Version() string
+
+	Stop() error
+
+	WebStart(address string, username string, password string)
+	WebIsRunning() bool
+	WebStop() error
+
+	AppendRule(ro *rule.Option) error
+	UpdateRule(id string, ro *rule.Option) error
+	DeleteRule(id string) error
+
+	GetRule(id string) *rule.Config
+	GetRules() []rule.Config
+
+	EnableRule(id string, enable bool) bool
+	EnableGroup(group string, enable bool) bool
+}
+
+var handler Handler
 
 // Use 4 spaces instead of \t
 const tips = `
@@ -65,7 +85,7 @@ func handleArgs(args []string) string {
 		return fmt.Sprintf(tips, args[0])
 	case "v", "version":
 		// yfw h/help
-		return core.Version
+		return handler.Version()
 	default:
 		return fmt.Sprintf("Unknown Command {%s}. Use help.", args[1])
 	}
@@ -79,20 +99,10 @@ func handleStatus(_ []string) string {
 // Stop 停止服务
 func handleStop(_ []string) string {
 	// yfw stop
-	result := ""
-	if err := http.Close(); err != nil {
-		result += fmt.Sprintf("Error: %v\n", err)
+	if err := handler.Stop(); err != nil {
+		return "YFW has tried to stop but error occurred. Use status to check the status"
 	}
-	if err := Close(); err != nil {
-		result += fmt.Sprintf("Error: %v\n", err)
-	}
-	if err := core.Close(); err != nil {
-		result += fmt.Sprintf("Error: %v\n", err)
-	}
-	if result == "" {
-		result = "ok"
-	}
-	return result
+	return "YFW Stopped"
 }
 
 func handlerWeb(args []string) string {
@@ -113,23 +123,21 @@ func handlerWeb(args []string) string {
 
 func handleWebStart(args []string) string {
 	// yfw web start {address} {username} {password}
-	if http.IsRunning() {
+	if handler.WebIsRunning() {
 		return "Web Server Already Running"
 	}
 	if len(args) < 3 {
 		return "Usage: start {address} {username} {password}"
 	}
-	if err := http.Start(args[0], args[1], args[2]); err != nil {
-		return fmt.Sprintf("Error: %v", err)
-	}
-	return "Web Server Started"
+	handler.WebStart(args[0], args[1], args[2])
+	return "Web Server has tried to start. Use status to check the status."
 }
 
 func handleWebStop(_ []string) string {
 	// yfw web stop
-	if !http.IsRunning() {
+	if !handler.WebIsRunning() {
 		return "Web Server Not Running"
-	} else if err := http.Close(); err != nil {
+	} else if err := handler.WebStop(); err != nil {
 		return fmt.Sprintf("Error: %v", err)
 	} else {
 		return "Web Server Stopped"
@@ -138,7 +146,7 @@ func handleWebStop(_ []string) string {
 
 func handleWebStatus(_ []string) string {
 	// yfw web status
-	if http.IsRunning() {
+	if handler.WebIsRunning() {
 		return "Web Server Status: Running"
 	} else {
 		return "Web Server Status: Not Running"
@@ -170,14 +178,14 @@ func handleRule(args []string) string {
 
 func handleRuleList(args []string) string {
 	if len(args) == 0 {
-		rules := core.GetRules()
+		rules := handler.GetRules()
 		var sb strings.Builder
 		for _, r := range rules {
 			sb.WriteString(r.String())
 		}
 		return sb.String()
 	} else {
-		r := core.GetRule(args[0])
+		r := handler.GetRule(args[0])
 		if r == nil {
 			return "No such rule"
 		}
@@ -193,7 +201,7 @@ func handleRuleAppend(args []string) string {
 	if err := json.Unmarshal([]byte(args[0]), &ro); err != nil {
 		return err.Error()
 	}
-	if err := core.AppendRule(&ro); err != nil {
+	if err := handler.AppendRule(&ro); err != nil {
 		return err.Error()
 	}
 	return "ok"
@@ -203,7 +211,7 @@ func handleRuleRemove(args []string) string {
 	if len(args) == 0 {
 		return "Usage: remove {id}"
 	}
-	if err := core.DeleteRule(args[0]); err != nil {
+	if err := handler.DeleteRule(args[0]); err != nil {
 		return err.Error()
 	}
 	return "ok"
@@ -217,7 +225,7 @@ func handleRuleChange(args []string) string {
 	if err := json.Unmarshal([]byte(args[1]), &ro); err != nil {
 		return err.Error()
 	}
-	if err := core.UpdateRule(args[0], &ro); err != nil {
+	if err := handler.UpdateRule(args[0], &ro); err != nil {
 		return err.Error()
 	}
 	return "ok"
@@ -225,9 +233,9 @@ func handleRuleChange(args []string) string {
 
 func handleRuleEnable(args []string) string {
 	if len(args) == 0 {
-		return "Rule: Missing subcommand"
+		return "Usage: enable {id}"
 	}
-	if core.EnableRule(args[0], true) {
+	if handler.EnableRule(args[0], true) {
 		return "ok"
 	}
 	return "No such rule"
@@ -235,9 +243,9 @@ func handleRuleEnable(args []string) string {
 
 func handleRuleDisable(args []string) string {
 	if len(args) == 0 {
-		return "Rule: Missing subcommand"
+		return "Usage: disable {id}"
 	}
-	if core.EnableRule(args[0], false) {
+	if handler.EnableRule(args[0], false) {
 		return "ok"
 	}
 	return "No such rule"
@@ -259,9 +267,9 @@ func handleGroup(args []string) string {
 
 func handleGroupEnable(args []string) string {
 	if len(args) == 0 {
-		return "Group: Missing subcommand"
+		return "Usage: enable {group}"
 	}
-	if core.EnableGroup(args[0], true) {
+	if handler.EnableGroup(args[0], true) {
 		return "ok"
 	}
 	return "No such group"
@@ -269,9 +277,9 @@ func handleGroupEnable(args []string) string {
 
 func handleGroupDisable(args []string) string {
 	if len(args) == 0 {
-		return "Group: Missing subcommand"
+		return "Usage: disable {group}"
 	}
-	if core.EnableGroup(args[0], false) {
+	if handler.EnableGroup(args[0], false) {
 		return "ok"
 	}
 	return "No such group"

@@ -1,7 +1,7 @@
 package rule
 
 import (
-	"YH-FireWall/internal/core/packet"
+	"YH-FireWall/core/packet"
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"net"
