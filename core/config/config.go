@@ -46,7 +46,7 @@ func DefaultConfig() *Config {
 		Unix: Unix{
 			Path: "/tmp/firewall.sock",
 		},
-		LastUpdateDate: time.Now().Format("2006-01-02 15:04:05"),
+		LastUpdateDate: time.Now().Format(time.RFC3339),
 		Rules:          []rule.Config{},
 	}
 }

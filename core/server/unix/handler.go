@@ -25,7 +25,6 @@ type Handler interface {
 	GetRules() []rule.Config
 
 	EnableRule(id string, enable bool) bool
-	EnableGroup(group string, enable bool) bool
 
 	GetConfig() *config.Config
 }
@@ -52,9 +51,6 @@ Commands:
         - c/change {id} {config}  Example. yfw rule change 12345678 '{"tar_net":"0.0.0.0/0"}'
         - e/enable {id}
         - d/disable {id}
-    - g/group
-        - e/enable  {group}
-        - d/disable {group}
     - c/cfg/config
     - h/help       Display this help message
     - v/version
@@ -82,9 +78,6 @@ func handleArgs(args []string) string {
 	case "r", "rule":
 		// yfw r/rule
 		return handleRule(args[2:])
-	case "g", "group":
-		// yfw g/group
-		return handleGroup(args[2:])
 	case "c", "cfg", "config":
 		if data, err := json.MarshalIndent(handler.GetConfig(), "", "    "); err != nil {
 			return err.Error()
@@ -262,38 +255,4 @@ func handleRuleDisable(args []string) string {
 		return "ok"
 	}
 	return "No such rule"
-}
-
-func handleGroup(args []string) string {
-	if len(args) == 0 {
-		return "Group: Missing subcommand"
-	}
-	switch args[0] {
-	case "e", "enable":
-		return handleGroupEnable(args[1:])
-	case "d", "disable":
-		return handleGroupDisable(args[1:])
-	default:
-		return "Unknown group subcommand"
-	}
-}
-
-func handleGroupEnable(args []string) string {
-	if len(args) == 0 {
-		return "Usage: enable {group}"
-	}
-	if handler.EnableGroup(args[0], true) {
-		return "ok"
-	}
-	return "No such group"
-}
-
-func handleGroupDisable(args []string) string {
-	if len(args) == 0 {
-		return "Usage: disable {group}"
-	}
-	if handler.EnableGroup(args[0], false) {
-		return "ok"
-	}
-	return "No such group"
 }

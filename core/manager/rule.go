@@ -139,17 +139,3 @@ func EnableRule(id string, enable bool) bool {
 	rr.SetEnable(enable)
 	return true
 }
-
-func EnableGroup(group string, enable bool) (effect bool) {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	for _, rr := range ruleList {
-		if rr.Group() == group {
-			if !effect && rr.Enable() != enable {
-				effect = true
-			}
-			rr.SetEnable(enable)
-		}
-	}
-	return effect
-}

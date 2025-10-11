@@ -66,7 +66,7 @@ func Close() error {
 	// 同步规则
 	cfg.Rules = manager.GetRules()
 	// 更新时间
-	cfg.LastUpdateDate = time.Now().Format("2006-01-02 15:04:05")
+	cfg.LastUpdateDate = time.Now().Format(time.RFC3339)
 	// 存储配置
 	if err := repo.Store(cfg); err != nil {
 		errs = append(errs, err)

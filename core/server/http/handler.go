@@ -14,7 +14,6 @@ type Handler interface {
 	GetRule(id string) *rule.Config
 	GetRules() []rule.Config
 	EnableRule(id string, enable bool) bool
-	EnableGroup(group string, enable bool) bool
 	GetConfig() *config.Config
 }
 
@@ -93,21 +92,12 @@ func mount(api *echo.Group, handler Handler) {
 		}
 		return c.NoContent(http.StatusOK)
 	})
-	//// 组启用禁用
-	//api.PUT("/group/enable", enableGroup)
-	api.PUT("/group/enable", func(c echo.Context) error {
-		group := c.QueryParam("group")
-		if !handler.EnableGroup(group, true) {
-			return c.NoContent(http.StatusBadRequest)
+	//
+	api.GET("/config", func(c echo.Context) error {
+		cfg := handler.GetConfig()
+		if cfg == nil {
+			return c.NoContent(http.StatusInternalServerError)
 		}
-		return c.NoContent(http.StatusOK)
-	})
-	//api.PUT("/group/disable", disableGroup)
-	api.PUT("/group/disable", func(c echo.Context) error {
-		group := c.QueryParam("group")
-		if !handler.EnableGroup(group, false) {
-			return c.NoContent(http.StatusBadRequest)
-		}
-		return c.NoContent(http.StatusOK)
+		return c.JSON(http.StatusOK, cfg)
 	})
 }

@@ -64,9 +64,6 @@ func (h *Handler) GetRules() []rule.Config {
 func (h *Handler) EnableRule(id string, enable bool) bool {
 	return manager.EnableRule(id, enable)
 }
-func (h *Handler) EnableGroup(group string, enable bool) bool {
-	return manager.EnableGroup(group, enable)
-}
 func (h *Handler) GetConfig() *config.Config {
 	d := &config.Config{}
 	_ = copier.Copy(d, h.Config)
