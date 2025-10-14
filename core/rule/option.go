@@ -1,8 +1,6 @@
 package rule
 
-import (
-	"YH-FireWall/core/pkg/sid"
-)
+import "github.com/google/uuid"
 
 type Option struct {
 	// 不应该通过结构体中的id定位规则
@@ -22,7 +20,7 @@ type Option struct {
 
 func (o *Option) Default() *Config {
 	c := &Config{
-		Id: sid.Generate(),
+		Id: uuid.New().String(),
 	}
 	if o.Group != nil {
 		c.Group = *o.Group

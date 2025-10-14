@@ -1,7 +1,6 @@
-package unix
+package cmdserver
 
 import (
-	"YH-FireWall/core/config"
 	"YH-FireWall/core/rule"
 	"encoding/json"
 	"fmt"
@@ -13,20 +12,14 @@ type Handler interface {
 
 	Stop() error
 
-	WebStart() error
-	WebIsRunning() bool
-	WebStop() error
-
 	AppendRule(ro *rule.Option) error
 	UpdateRule(id string, ro *rule.Option) error
 	DeleteRule(id string) error
-
 	GetRule(id string) *rule.Config
 	GetRules() []rule.Config
-
 	EnableRule(id string, enable bool) bool
 
-	GetConfig() *config.Config
+	GetConfig() (string, error)
 }
 
 var handler Handler
@@ -38,11 +31,6 @@ Commands:
     - start         Start the firewall service.               Example. yfw start
     - stop          Stop the firewall service.                Example. yfw stop
     - status        Check the status of the firewall service. Example. yfw status
-    - w/web
-        - start {address} {username} {password}
-                    Start the web unix.                     Example. yfw web start 0.0.0.0:8080 root root1234
-        - status    Check the status of the web unix.       Example. yfw web status
-        - stop      Stop the web unix.                      Example. yfw web stop
     - r/rule
         - l/ls/list               Example. yfw rule list
             - {id}                Example. yfw rule list DSHUIC90
@@ -72,17 +60,14 @@ func handleArgs(args []string) string {
 		return handleStatus(args[2:])
 	case "stop":
 		return handleStop(args[2:])
-	case "w", "web":
-		// yfw w/web
-		return handlerWeb(args[2:])
 	case "r", "rule":
 		// yfw r/rule
 		return handleRule(args[2:])
 	case "c", "cfg", "config":
-		if data, err := json.MarshalIndent(handler.GetConfig(), "", "    "); err != nil {
+		if data, err := handler.GetConfig(); err != nil {
 			return err.Error()
 		} else {
-			return string(data)
+			return data
 		}
 	case "h", "help":
 		// yfw h/help
@@ -107,56 +92,6 @@ func handleStop(_ []string) string {
 		return "YFW has tried to stop but error occurred. Use status to check the status"
 	}
 	return "YFW Stopped"
-}
-
-func handlerWeb(args []string) string {
-	if len(args) == 0 {
-		return "Web: Missing subcommand"
-	}
-	switch args[0] {
-	case "start":
-		return handleWebStart(args[1:])
-	case "stop":
-		return handleWebStop(args[1:])
-	case "status":
-		return handleWebStatus(args[1:])
-	default:
-		return "Unknown web subcommand"
-	}
-}
-
-func handleWebStart(args []string) string {
-	// yfw web start {address} {username} {password}
-	if handler.WebIsRunning() {
-		return "Web Server Already Running"
-	}
-	if len(args) < 3 {
-		return "Usage: start"
-	}
-	if err := handler.WebStart(); err != nil {
-		return fmt.Sprintf("Failed to start web server: %v", err)
-	}
-	return "Web Server has tried to start. Use status to check the status."
-}
-
-func handleWebStop(_ []string) string {
-	// yfw web stop
-	if !handler.WebIsRunning() {
-		return "Web Server Not Running"
-	}
-	if err := handler.WebStop(); err != nil {
-		return fmt.Sprintf("Failed to stop web server: %v", err)
-	}
-	return "Web Server Stopped"
-}
-
-func handleWebStatus(_ []string) string {
-	// yfw web status
-	if handler.WebIsRunning() {
-		return "Web Server Status: Running"
-	} else {
-		return "Web Server Status: Not Running"
-	}
 }
 
 // -----------------------------------------------------------------

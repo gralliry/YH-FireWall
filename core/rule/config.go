@@ -1,7 +1,6 @@
 package rule
 
 import (
-	"YH-FireWall/core/pkg/sid"
 	"fmt"
 	"strings"
 )
@@ -20,10 +19,6 @@ type Config struct {
 	Accept   bool   `json:"accept"`
 	Priority int    `json:"priority"`
 	Enable   bool   `json:"enable"`
-}
-
-func (c *Config) Refresh() {
-	c.Id = sid.Generate()
 }
 
 func (c *Config) String() string {

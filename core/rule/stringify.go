@@ -30,11 +30,9 @@ func stringifyPort(ports [][2]uint16) string {
 func stringifyDev(devs map[uint32]struct{}) string {
 	var parts []string
 	for k := range devs {
-		ifi, err := net.InterfaceByIndex(int(k))
-		if err != nil {
-			continue
+		if ifi, err := net.InterfaceByIndex(int(k)); err == nil {
+			parts = append(parts, ifi.Name)
 		}
-		parts = append(parts, ifi.Name)
 	}
 	return strings.Join(parts, ",")
 }

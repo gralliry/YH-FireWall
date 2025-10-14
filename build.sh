@@ -1,5 +1,1 @@
-go build -o yfw ./cmd
-
-sudo mv yfw /usr/local/bin/
-
-sudo chmod +x /usr/local/bin/yfw
+go build -o /usr/local/bin/yfw ./cmd && sudo chmod +x /usr/local/bin/yfw

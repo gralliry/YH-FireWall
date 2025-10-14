@@ -1,52 +1,120 @@
 package config
 
 import (
-	"YH-FireWall/core/rule"
+	"errors"
+	"fmt"
+	"os"
+	"path"
+	"syscall"
 	"time"
 )
 
 const Version = "1.0.0"
 
-type Queue struct {
-	Num    uint16 `json:"num"`
-	Accept bool   `json:"accept"`
-}
+var (
+	DefaultPath = "/etc/yfw/config.yaml"
+)
 
-type Web struct {
-	Address           string `json:"address"`
-	BasicAuthUser     string `json:"basic_auth_user"`
-	BasicAuthPassword string `json:"basic_auth_password"`
-	StaticDir         string `json:"static_dir"`
-}
-
-type Unix struct {
-	Path string `json:"path"`
-}
+var (
+	file *os.File
+)
 
 type Config struct {
-	LastUpdateDate string        `json:"last_update_date"`
-	Rules          []rule.Config `json:"rules"`
-	Queue          Queue         `json:"queue"`
-	Web            Web           `json:"web"`
-	Unix           Unix          `json:"unix"`
+	LastUpdateDate string `json:"last_update_date"`
+
+	QueueNo uint16 `json:"queue_no"`
+
+	WebEnable            bool   `json:"web_enable"`
+	WebAddress           string `json:"web_address"`
+	WebBasicAuthUser     string `json:"web_basic_auth_user"`
+	WebBasicAuthPassword string `json:"web_basic_auth_password"`
+	WebStaticDir         string `json:"web_static_dir"`
+
+	CmdEnable     bool   `json:"cmd_enable"`
+	CmdSocketPath string `json:"cmd_socket_path"`
+
+	RuleTablePath          string `json:"rule_table_path"`
+	RuleTableDefaultAccept bool   `json:"rule_table_default_accept"`
 }
 
-func DefaultConfig() *Config {
+func Default() *Config {
 	return &Config{
-		Queue: Queue{
-			Num:    0,
-			Accept: true,
-		},
-		Web: Web{
-			Address:           ":8080",
-			BasicAuthUser:     "",
-			BasicAuthPassword: "",
-			StaticDir:         "front/dist",
-		},
-		Unix: Unix{
-			Path: "/tmp/firewall.sock",
-		},
 		LastUpdateDate: time.Now().Format(time.RFC3339),
-		Rules:          []rule.Config{},
+
+		QueueNo: 0,
+
+		WebEnable:            true,
+		WebAddress:           ":8080",
+		WebStaticDir:         "front/dist",
+		WebBasicAuthUser:     "",
+		WebBasicAuthPassword: "",
+
+		CmdEnable:     true,
+		CmdSocketPath: "/tmp/yfw.sock",
+
+		RuleTablePath:          "/etc/yfw/rule.json",
+		RuleTableDefaultAccept: true,
 	}
+}
+
+func Init() (err error) {
+	// 确保目录存在
+	if err = os.MkdirAll(path.Dir(DefaultPath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	// 打开文件
+	file, err = os.OpenFile(DefaultPath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	// 尝试独占锁（非阻塞）
+	if err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("failed to acquire exclusive lock: %w", err)
+	}
+	return nil
+}
+
+func Read() (content []byte, err error) {
+	// 重置文件指针
+	if _, err = file.Seek(0, 0); err != nil {
+		return nil, fmt.Errorf("failed to seek file: %w", err)
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file stat: %w", err)
+	}
+	buf := make([]byte, info.Size())
+	if _, err = file.Read(buf); err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	return buf, nil
+}
+
+func Store(buf []byte) error {
+	// 重置文件指针
+	if _, err := file.Seek(0, 0); err != nil {
+		return fmt.Errorf("failed to seek file: %w", err)
+	}
+	if err := file.Truncate(0); err != nil {
+		return fmt.Errorf("failed to truncate file: %w", err)
+	}
+	if _, err := file.Write(buf); err != nil {
+		return fmt.Errorf("failed to write string to file: %w", err)
+	}
+	if err := file.Sync(); err != nil {
+		return fmt.Errorf("failed to sync file: %w", err)
+	}
+	return nil
+}
+
+func Close() error {
+	var errs []error
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_UN); err != nil {
+		errs = append(errs, fmt.Errorf("failed to unlock file: %w", err))
+	}
+	if err := file.Close(); err != nil {
+		errs = append(errs, fmt.Errorf("failed to close file: %w", err))
+	}
+	return errors.Join(errs...)
 }

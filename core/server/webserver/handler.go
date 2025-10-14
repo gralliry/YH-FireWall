@@ -1,9 +1,10 @@
-package http
+package webserver
 
 import (
-	"YH-FireWall/core/config"
 	"YH-FireWall/core/rule"
+	"YH-FireWall/core/system"
 	"github.com/labstack/echo/v4"
+	"io"
 	"net/http"
 )
 
@@ -11,10 +12,13 @@ type Handler interface {
 	AppendRule(ro *rule.Option) error
 	UpdateRule(id string, ro *rule.Option) error
 	DeleteRule(id string) error
-	GetRule(id string) *rule.Config
 	GetRules() []rule.Config
 	EnableRule(id string, enable bool) bool
-	GetConfig() *config.Config
+	GetConfig() (string, error)
+	SetConfig(raw string) error
+	GetConnections() ([]system.Connection, error)
+	GetProcesses() ([]system.Process, error)
+	GetInterfaces() ([]system.Interface, error)
 }
 
 //// 必须放前面，提高api匹配优先级
@@ -25,7 +29,6 @@ func mount(api *echo.Group, handler Handler) {
 	api.GET("/ping", func(c echo.Context) error {
 		return c.String(http.StatusOK, "pong")
 	})
-
 	// 规则增删改
 	//api.GET("/rule", getRules)
 	api.GET("/rule", func(c echo.Context) error {
@@ -92,12 +95,46 @@ func mount(api *echo.Group, handler Handler) {
 		}
 		return c.NoContent(http.StatusOK)
 	})
-	//
+	// config get/set
 	api.GET("/config", func(c echo.Context) error {
-		cfg := handler.GetConfig()
-		if cfg == nil {
+		data, err := handler.GetConfig()
+		if err != nil {
 			return c.NoContent(http.StatusInternalServerError)
 		}
-		return c.JSON(http.StatusOK, cfg)
+		return c.String(http.StatusOK, data)
+	})
+	api.POST("/config", func(c echo.Context) error {
+		data, err := io.ReadAll(c.Request().Body)
+		if err != nil {
+			return err
+		}
+		if err = handler.SetConfig(string(data)); err != nil {
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		return c.NoContent(http.StatusOK)
+	})
+	//
+	api.GET("/connection", func(c echo.Context) error {
+		conns, err := handler.GetConnections()
+		if err != nil {
+			return err
+		}
+		return c.JSON(http.StatusOK, conns)
+	})
+	//
+	api.GET("/process", func(c echo.Context) error {
+		procs, err := handler.GetProcesses()
+		if err != nil {
+			return err
+		}
+		return c.JSON(http.StatusOK, procs)
+	})
+	//
+	api.GET("/interface", func(c echo.Context) error {
+		interfaces, err := handler.GetInterfaces()
+		if err != nil {
+			return err
+		}
+		return c.JSON(http.StatusOK, interfaces)
 	})
 }

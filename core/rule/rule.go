@@ -1,7 +1,6 @@
 package rule
 
 import (
-	"YH-FireWall/core/packet"
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"net"
@@ -32,7 +31,10 @@ type Rule struct {
 	mutex sync.RWMutex
 }
 
-func Parse(cfg Config) (*Rule, error) {
+func Parse(cfg *Config) (*Rule, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("rule config is nil")
+	}
 	if cfg.Id == "" {
 		return nil, fmt.Errorf("rule id is empty")
 	}
@@ -45,46 +47,33 @@ func Parse(cfg Config) (*Rule, error) {
 		enable:   cfg.Enable,
 	}
 	// 源网络
-	if srcNet, err := parseIPNet(cfg.SrcNet); err == nil {
-		r.srcNets = srcNet
-	} else {
-		return nil, err
+	var err error
+	if r.srcNets, err = parseIPNet(cfg.SrcNet); err != nil {
+		return nil, fmt.Errorf("parse source network failed: %w", err)
 	}
 	// 源端口
-	if srcPort, err := parsePort(cfg.SrcPort); err == nil {
-		r.srcPorts = srcPort
-	} else {
-		return nil, err
+	if r.srcPorts, err = parsePort(cfg.SrcPort); err != nil {
+		return nil, fmt.Errorf("parse source port failed: %w", err)
 	}
 	// 目标网络
-	if tarNet, err := parseIPNet(cfg.TarNet); err == nil {
-		r.dstNets = tarNet
-	} else {
-		return nil, err
+	if r.dstNets, err = parseIPNet(cfg.TarNet); err != nil {
+		return nil, fmt.Errorf("parse target network failed: %w", err)
 	}
 	// 目标端口
-	if tarPort, err := parsePort(cfg.TarPort); err == nil {
-		r.dstPorts = tarPort
-	} else {
-		return nil, err
+	if r.dstPorts, err = parsePort(cfg.TarPort); err != nil {
+		return nil, fmt.Errorf("parse target port failed: %w", err)
 	}
 	// 入口
-	if inDev, err := parseDev(cfg.InDev); err == nil {
-		r.inDevs = inDev
-	} else {
-		return nil, err
+	if r.inDevs, err = parseDev(cfg.InDev); err != nil {
+		return nil, fmt.Errorf("parse input device failed: %w", err)
 	}
 	// 出口
-	if outDev, err := parseDev(cfg.OutDev); err == nil {
-		r.outDevs = outDev
-	} else {
-		return nil, err
+	if r.outDevs, err = parseDev(cfg.OutDev); err != nil {
+		return nil, fmt.Errorf("parse output device failed: %w", err)
 	}
 	// 协议
-	if protocols, err := parseProtocol(cfg.Protocol); err == nil {
-		r.protocols = protocols
-	} else {
-		return nil, err
+	if r.protocols, err = parseProtocol(cfg.Protocol); err != nil {
+		return nil, fmt.Errorf("parse protocol failed: %w", err)
 	}
 	return r, nil
 }
@@ -109,7 +98,15 @@ func (r *Rule) Unparse() *Config {
 	}
 }
 
-func (r *Rule) Match(p *packet.Packet) bool {
+func (r *Rule) Match(
+	srcIP net.IP,
+	srcPort uint16,
+	dstIP net.IP,
+	dstPort uint16,
+	inDev *uint32,
+	outDev *uint32,
+	protocol layers.IPProtocol,
+) bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	// 这里可以通过架构去优化，减少if次数
@@ -117,32 +114,33 @@ func (r *Rule) Match(p *packet.Packet) bool {
 		return false
 	}
 	// 匹配 入口网卡 // 为空默认跳过该检查
-	if !matchDev(r.inDevs, p.InDev()) {
+	if !matchDev(r.inDevs, inDev) {
 		return false
 	}
 	// 匹配 出口网卡 // 为空默认跳过该检查
-	if !matchDev(r.outDevs, p.OutDev()) {
+	if !matchDev(r.outDevs, outDev) {
 		return false
 	}
 	// 匹配 协议 // 为空默认跳过该检查
-	if !matchProtocol(r.protocols, p.Protocol()) {
+	if !matchProtocol(r.protocols, protocol) {
 		return false
 	}
 	// 匹配 源 IP
-	if !matchIPNet(r.srcNets, p.SrcIP()) {
+	if !matchIPNet(r.srcNets, srcIP) {
 		return false
 	}
 	// 匹配 目标 IP
-	if !matchIPNet(r.dstNets, p.DstIP()) {
+	if !matchIPNet(r.dstNets, dstIP) {
 		return false
 	}
-	// 匹配 端口（如果这个协议有端口） // 仅支持tcp udp
-	if p.UsePort() {
+	// 匹配 端口（如果这个协议有端口） // 仅支持tcp udp // sctp dccp 不支持
+	if protocol == layers.IPProtocolTCP || protocol == layers.IPProtocolUDP {
 		// 匹配 源端口
-		if !matchPort(r.srcPorts, p.SrcPort()) {
+		if !matchPort(r.srcPorts, srcPort) {
 			return false
 		}
-		if !matchPort(r.dstPorts, p.DstPort()) {
+		// 匹配 目标端口
+		if !matchPort(r.dstPorts, dstPort) {
 			return false
 		}
 	}
@@ -150,52 +148,63 @@ func (r *Rule) Match(p *packet.Packet) bool {
 }
 
 func (r *Rule) Update(o Option) (err error) {
-	var srcNet []net.IPNet
+	// 预先解析所有需要更新的字段，如果有错误则直接返回
+	var (
+		srcNet    []net.IPNet
+		srcPort   [][2]uint16
+		tarNet    []net.IPNet
+		tarPort   [][2]uint16
+		inDevs    map[uint32]struct{}
+		outDevs   map[uint32]struct{}
+		protocols map[layers.IPProtocol]struct{}
+	)
+	// 解析源网络
 	if o.SrcNet != nil {
 		if srcNet, err = parseIPNet(*o.SrcNet); err != nil {
-			return err
+			return fmt.Errorf("parse source network failed: %w", err)
 		}
 	}
-	var srcPort [][2]uint16
+	// 解析源端口
 	if o.SrcPort != nil {
 		if srcPort, err = parsePort(*o.SrcPort); err != nil {
-			return err
+			return fmt.Errorf("parse source port failed: %w", err)
 		}
 	}
-	var tarNet []net.IPNet
+	// 解析目标网络
 	if o.TarNet != nil {
 		if tarNet, err = parseIPNet(*o.TarNet); err != nil {
-			return err
+			return fmt.Errorf("parse target network failed: %w", err)
 		}
 	}
-	var tarPort [][2]uint16
+	// 解析目标端口
 	if o.TarPort != nil {
 		if tarPort, err = parsePort(*o.TarPort); err != nil {
-			return err
+			return fmt.Errorf("parse target port failed: %w", err)
 		}
 	}
-	var inDevs map[uint32]struct{}
+	// 解析入口设备
 	if o.InDev != nil {
 		if inDevs, err = parseDev(*o.InDev); err != nil {
-			return err
+			return fmt.Errorf("parse input device failed: %w", err)
 		}
 	}
-	var outDevs map[uint32]struct{}
+	// 解析出口设备
 	if o.OutDev != nil {
 		if outDevs, err = parseDev(*o.OutDev); err != nil {
-			return err
+			return fmt.Errorf("parse output device failed: %w", err)
 		}
 	}
-	var protocols map[layers.IPProtocol]struct{}
+	// 解析协议
 	if o.Protocol != nil {
 		if protocols, err = parseProtocol(*o.Protocol); err != nil {
-			return err
+			return fmt.Errorf("parse protocol failed: %w", err)
 		}
 	}
-	// 锁
+	// 所有解析成功，加锁更新
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	// 到此为止，没有错误，开始更新
+
+	// 更新各个字段
 	if o.Group != nil {
 		r.group = *o.Group
 	}
@@ -232,6 +241,7 @@ func (r *Rule) Update(o Option) (err error) {
 	if o.Enable != nil {
 		r.enable = *o.Enable
 	}
+
 	return nil
 }
 
@@ -256,12 +266,6 @@ func (r *Rule) SetEnable(enable bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	r.enable = enable
-}
-
-func (r *Rule) Enable() bool {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-	return r.enable
 }
 
 func (r *Rule) Accept() bool {

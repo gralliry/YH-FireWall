@@ -1,60 +1,47 @@
-package unix
+package cmdserver
 
 import (
-	"YH-FireWall/core/config"
 	"errors"
+	"fmt"
 	"github.com/google/shlex"
 	"log"
 	"net"
 	"os"
 	"strings"
-	"sync"
+)
+
+var (
+	SocketPath string
 )
 
 var (
 	listener  net.Listener
 	isRunning bool
-	mutex     sync.RWMutex
 )
 
-func Start(cfg config.Unix, h Handler) (err error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	if isRunning {
-		return errors.New("unix service already be started")
-	}
-	// 删除残留的 unix 文件
-	_ = os.Remove(cfg.Path)
+func Start(h Handler) (err error) {
+	// 删除残留的 cmdserver 文件
+	_ = os.Remove(SocketPath)
 	// 监听 Unix 域套接字
-	listener, err = net.Listen("unix", cfg.Path)
+	listener, err = net.Listen("unix", SocketPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to listen on socket: %w", err)
 	}
 	// 设置处理函数
 	handler = h
-	isRunning = true
 	// 启动监听
 	go acceptConn()
+	//
+	isRunning = true
 	return nil
 }
 
 func Close() error {
-	mutex.Lock()
-	defer mutex.Unlock()
-	//
-	if !isRunning {
-		return errors.New("unix not be started")
-	}
 	isRunning = false
-	if err := listener.Close(); err != nil {
-		return err
-	}
-	return nil
+	return listener.Close()
 }
 
 func IsRunning() bool {
-	mutex.RLock()
-	defer mutex.RUnlock()
 	return isRunning
 }
 

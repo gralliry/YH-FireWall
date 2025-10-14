@@ -1,29 +1,27 @@
-package http
+package webserver
 
 import (
-	"YH-FireWall/core/config"
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"io"
 	"log"
 	"net/http"
-	"sync"
 )
 
 var (
 	server    *echo.Echo
 	isRunning bool
-	mutex     sync.RWMutex
 )
 
-func Start(cfg config.Web, handler Handler) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-	//
-	if isRunning {
-		return errors.New("web service already be started")
-	}
+var (
+	Address           string
+	BasicAuthUser     string
+	BasicAuthPassword string
+	StaticDir         string
+)
+
+func Start(handler Handler) error {
 	// 初始化 echo 实例
 	e := echo.New()
 	// 隐藏Banner
@@ -31,13 +29,13 @@ func Start(cfg config.Web, handler Handler) error {
 	// 日志级别设置为OFF，关闭echo官方日志输出
 	e.Logger.SetOutput(io.Discard)
 	// 设置静态文件
-	if cfg.StaticDir != "" {
-		e.Static("/", cfg.StaticDir)
+	if StaticDir != "" {
+		e.Static("/", StaticDir)
 	}
 	// 设置 BasicAuth 中间件
-	if cfg.BasicAuthPassword != "" {
+	if BasicAuthPassword != "" {
 		e.Use(middleware.BasicAuth(func(usr, pwd string, c echo.Context) (bool, error) {
-			return usr == cfg.BasicAuthUser && pwd == cfg.BasicAuthPassword, nil
+			return usr == BasicAuthUser && pwd == BasicAuthPassword, nil
 		}))
 	}
 	// 必须放前面，提高api匹配优先级
@@ -45,7 +43,7 @@ func Start(cfg config.Web, handler Handler) error {
 	// 挂载接口
 	mount(api, handler)
 	// 启动服务器
-	go start(e, cfg.Address)
+	go start(e, Address)
 	//
 	server = e
 	isRunning = true
@@ -54,11 +52,6 @@ func Start(cfg config.Web, handler Handler) error {
 }
 
 func Close() error {
-	mutex.Lock()
-	defer mutex.Unlock()
-	if !isRunning {
-		return errors.New("web service not be stared")
-	}
 	isRunning = false
 	if err := server.Close(); err != nil {
 		return err
@@ -67,8 +60,6 @@ func Close() error {
 }
 
 func IsRunning() bool {
-	mutex.RLock()
-	defer mutex.RUnlock()
 	return isRunning
 }
 
