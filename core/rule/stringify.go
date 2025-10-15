@@ -40,7 +40,7 @@ func stringifyDev(devs map[uint32]struct{}) string {
 func stringifyProtocol(protocols map[layers.IPProtocol]struct{}) string {
 	var parts []string
 	for p := range protocols {
-		parts = append(parts, strings.ToLower(string(p)))
+		parts = append(parts, strings.ToLower(p.String()))
 	}
 	return strings.Join(parts, ",")
 }

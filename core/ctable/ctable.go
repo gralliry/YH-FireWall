@@ -71,7 +71,7 @@ func Push(
 	//
 	if !isWork {
 		// 打印 报文
-		pringLog(proto, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
+		//pringLog(proto, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
 		return
 	}
 	// 对协议判断

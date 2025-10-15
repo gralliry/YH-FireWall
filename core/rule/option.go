@@ -6,12 +6,12 @@ type Option struct {
 	// 不应该通过结构体中的id定位规则
 	Group    *string `json:"group"`
 	Comment  *string `json:"comment"`
-	SrcNet   *string `json:"src_net"`
-	SrcPort  *string `json:"src_port"`
-	TarNet   *string `json:"tar_net"`
-	TarPort  *string `json:"tar_port"`
-	InDev    *string `json:"in_dev"`
-	OutDev   *string `json:"out_dev"`
+	SrcNet   *string `json:"srcNet"`
+	SrcPort  *string `json:"srcPort"`
+	TarNet   *string `json:"tarNet"`
+	TarPort  *string `json:"tarPort"`
+	InDev    *string `json:"inDev"`
+	OutDev   *string `json:"outDev"`
 	Protocol *string `json:"protocol"`
 	Accept   *bool   `json:"accept"`
 	Priority *int    `json:"priority"`

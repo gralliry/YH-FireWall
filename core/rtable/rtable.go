@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"io"
+	"log"
 	"net"
 	"os"
 	"path"
@@ -60,9 +61,13 @@ func Load() (err error) {
 	for _, rc := range rules {
 		// 匹配
 		if _, exists := ruleMap[rc.Id]; exists {
+			// todo
+			log.Printf("rule %s exists", rc.Id)
 			continue
 		}
 		if rr, err = rule.Parse(&rc); err != nil {
+			// todo
+			log.Printf("failed to parse rule %s: %v", rc.Id, err)
 			continue
 		}
 		// 如果都没有，就添加
@@ -79,22 +84,22 @@ func Close() error {
 	defer mutex.Unlock()
 	// 重置文件指针
 	if _, err := file.Seek(0, 0); err != nil {
-		return err
+		return fmt.Errorf("failed to seek file: %w", err)
 	}
 	// 清空文件
 	if err := file.Truncate(0); err != nil {
-		return err
+		return fmt.Errorf("failed to truncate file: %w", err)
 	}
 	// 存储
 	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "    ") // "" 前缀，"  " 缩进
-	var errs []error
-	if err := encoder.Encode(ruleList); err != nil {
-		errs = append(errs, err)
+	encoder.SetIndent("", "  ") // "" 前缀，"  " 缩进
+	if err := encoder.Encode(getRules()); err != nil {
+		return fmt.Errorf("failed to encode ruleList: %w", err)
 	}
 	if err := file.Sync(); err != nil {
-		errs = append(errs, err)
+		return fmt.Errorf("failed to sync file: %w", err)
 	}
+	var errs []error
 	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_UN); err != nil {
 		errs = append(errs, err)
 	}
@@ -128,11 +133,14 @@ func Append(ro *rule.Option) error {
 func Update(id string, ro *rule.Option) error {
 	mutex.RLock()
 	defer mutex.RUnlock()
-	if rr, exists := ruleMap[id]; !exists {
+	rr, exists := ruleMap[id]
+	if !exists {
 		return fmt.Errorf("rule %s not exists", id)
-	} else {
-		return rr.Update(*ro)
 	}
+	if err := rr.Update(*ro); err != nil {
+		return fmt.Errorf("update rule %s error: %v", id, err)
+	}
+	return nil
 }
 
 // Delete 删除规则
@@ -193,14 +201,18 @@ func GetRule(rid string) *rule.Config {
 	}
 }
 
-func GetRules() []rule.Config {
-	mutex.RLock()
-	defer mutex.RUnlock()
+func getRules() []rule.Config {
 	rules := make([]rule.Config, len(ruleList))
 	for i, r := range ruleList {
 		rules[i] = *r.Unparse()
 	}
 	return rules
+}
+
+func GetRules() []rule.Config {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	return getRules()
 }
 
 func SetAbleRule(id string, enable bool) bool {

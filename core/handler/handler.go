@@ -55,10 +55,6 @@ func (h *Handler) GetConnections() ([]system.Connection, error) {
 	return system.GetConnections()
 }
 
-func (h *Handler) GetProcesses() ([]system.Process, error) {
-	return system.GetProcesses()
-}
-
 func (h *Handler) GetInterfaces() ([]system.Interface, error) {
 	return system.GetInterface()
 }

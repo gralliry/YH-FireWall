@@ -46,8 +46,8 @@ func Default() *Config {
 		WebEnable:            true,
 		WebAddress:           ":8080",
 		WebStaticDir:         "front/dist",
-		WebBasicAuthUser:     "",
-		WebBasicAuthPassword: "",
+		WebBasicAuthUser:     "root",
+		WebBasicAuthPassword: "root",
 
 		CmdEnable:     true,
 		CmdSocketPath: "/tmp/yfw.sock",

@@ -32,6 +32,13 @@ func Start(handler Handler) error {
 	if StaticDir != "" {
 		e.Static("/", StaticDir)
 	}
+	// 设置跨域中间件
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     []string{"*"}, // 允许所有来源
+		AllowMethods:     []string{echo.GET, echo.POST, echo.PUT, echo.DELETE, echo.OPTIONS},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+		AllowCredentials: true,
+	}))
 	// 设置 BasicAuth 中间件
 	if BasicAuthPassword != "" {
 		e.Use(middleware.BasicAuth(func(usr, pwd string, c echo.Context) (bool, error) {

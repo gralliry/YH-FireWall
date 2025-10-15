@@ -5,6 +5,7 @@ import (
 	"YH-FireWall/core/system"
 	"github.com/labstack/echo/v4"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -17,7 +18,6 @@ type Handler interface {
 	GetConfig() (string, error)
 	SetConfig(raw string) error
 	GetConnections() ([]system.Connection, error)
-	GetProcesses() ([]system.Process, error)
 	GetInterfaces() ([]system.Interface, error)
 }
 
@@ -99,6 +99,7 @@ func mount(api *echo.Group, handler Handler) {
 	api.GET("/config", func(c echo.Context) error {
 		data, err := handler.GetConfig()
 		if err != nil {
+			log.Println("get config error:", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 		return c.String(http.StatusOK, data)
@@ -120,14 +121,6 @@ func mount(api *echo.Group, handler Handler) {
 			return err
 		}
 		return c.JSON(http.StatusOK, conns)
-	})
-	//
-	api.GET("/process", func(c echo.Context) error {
-		procs, err := handler.GetProcesses()
-		if err != nil {
-			return err
-		}
-		return c.JSON(http.StatusOK, procs)
 	})
 	//
 	api.GET("/interface", func(c echo.Context) error {
