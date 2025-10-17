@@ -1,6 +1,8 @@
 package rule
 
-import "github.com/google/uuid"
+import (
+	"math/rand"
+)
 
 type Option struct {
 	// 不应该通过结构体中的id定位规则
@@ -18,9 +20,30 @@ type Option struct {
 	Enable   *bool   `json:"enable"`
 }
 
+// 自定义字符集
+const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+func id(n int) string {
+	runes := []rune(alphabet) // 支持 Unicode
+	length := len(runes)
+
+	if n > length {
+		n = length // 防止 n 太大
+	}
+
+	// Fisher–Yates 洗牌
+	for i := length - 1; i > length-1-n; i-- {
+		j := rand.Intn(i + 1)
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+
+	return string(runes[length-n:])
+}
+
 func (o *Option) Default() *Config {
+	// 生成 8 位长度的 ID
 	c := &Config{
-		Id: uuid.New().String(),
+		Id: id(8),
 	}
 	if o.Group != nil {
 		c.Group = *o.Group

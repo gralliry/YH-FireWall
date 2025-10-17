@@ -97,7 +97,7 @@ func Close() error {
 	// 存储
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ") // "" 前缀，"  " 缩进
-	if err := encoder.Encode(getRules()); err != nil {
+	if err := encoder.Encode(getAll()); err != nil {
 		return fmt.Errorf("failed to encode ruleList: %w", err)
 	}
 	if err := file.Sync(); err != nil {
@@ -114,7 +114,7 @@ func Close() error {
 }
 
 // Append 添加或更新规则
-func Append(ro *rule.Option) error {
+func Append(ro *rule.Option) (string, error) {
 	// uuid不可能重复
 	rc := ro.Default()
 	//
@@ -123,14 +123,15 @@ func Append(ro *rule.Option) error {
 	//
 	rr, err := rule.Parse(rc)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// 标记
 	ruleIsListDirty = true
 	// 如果都没有，就添加
 	ruleMap[rc.Id] = rr
 	ruleList = append(ruleList, rr)
-	return nil
+	//
+	return rr.Id(), nil
 }
 
 // Update 更新规则
@@ -205,7 +206,7 @@ func Get(rid string) *rule.Config {
 	}
 }
 
-func getRules() []rule.Config {
+func getAll() []rule.Config {
 	rules := make([]rule.Config, len(ruleList))
 	for i, r := range ruleList {
 		rules[i] = *r.Unparse()
@@ -216,7 +217,7 @@ func getRules() []rule.Config {
 func GetAll() []rule.Config {
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return getRules()
+	return getAll()
 }
 
 func Enable(id string, enable bool) bool {

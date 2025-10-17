@@ -12,7 +12,7 @@ type Handler interface {
 
 	Stop() error
 
-	AppendRule(ro *rule.Option) error
+	AppendRule(ro *rule.Option) (string, error)
 	UpdateRule(id string, ro *rule.Option) error
 	DeleteRule(id string) error
 	GetRule(id string) *rule.Config
@@ -142,7 +142,7 @@ func handleRuleAppend(args []string) string {
 	if err := json.Unmarshal([]byte(args[0]), &ro); err != nil {
 		return err.Error()
 	}
-	if err := handler.AppendRule(&ro); err != nil {
+	if _, err := handler.AppendRule(&ro); err != nil {
 		return err.Error()
 	}
 	return "ok"

@@ -23,7 +23,7 @@ func (h *Handler) Stop() error {
 	return nil
 }
 
-func (h *Handler) AppendRule(ro *rule.Option) error {
+func (h *Handler) AppendRule(ro *rule.Option) (string, error) {
 	return rtable.Append(ro)
 }
 func (h *Handler) UpdateRule(id string, ro *rule.Option) error {

@@ -11,7 +11,7 @@ import (
 )
 
 type Handler interface {
-	AppendRule(ro *rule.Option) error
+	AppendRule(ro *rule.Option) (string, error)
 	UpdateRule(id string, ro *rule.Option) error
 	DeleteRule(id string) error
 	GetRules() []rule.Config
@@ -43,10 +43,11 @@ func mount(api *echo.Group, handler Handler) {
 		if err := c.Bind(option); err != nil {
 			return err
 		}
-		if err := handler.AppendRule(option); err != nil {
+		id, err := handler.AppendRule(option)
+		if err != nil {
 			return err
 		}
-		return c.NoContent(http.StatusOK)
+		return c.String(http.StatusOK, id)
 	})
 	//api.PUT("/rule/:id", updateRule)
 	api.PUT("/rule/:id", func(c echo.Context) error {
@@ -71,29 +72,6 @@ func mount(api *echo.Group, handler Handler) {
 		}
 		if err := handler.DeleteRule(id); err != nil {
 			return err
-		}
-		return c.NoContent(http.StatusOK)
-	})
-	//// 规则启用禁用
-	//api.PUT("/rule/:id/enable", enableRule)
-	api.PUT("/rule/:id/enable", func(c echo.Context) error {
-		id := c.Param("id")
-		if id == "" {
-			return c.String(http.StatusBadRequest, "id is required")
-		}
-		if !handler.EnableRule(id, true) {
-			return c.NoContent(http.StatusBadRequest)
-		}
-		return c.NoContent(http.StatusOK)
-	})
-	//api.PUT("/rule/:id/disable", disableRule)
-	api.PUT("/rule/:id/disable", func(c echo.Context) error {
-		id := c.Param("id")
-		if id == "" {
-			return c.String(http.StatusBadRequest, "id is required")
-		}
-		if !handler.EnableRule(id, false) {
-			return c.NoContent(http.StatusBadRequest)
 		}
 		return c.NoContent(http.StatusOK)
 	})
