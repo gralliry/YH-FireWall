@@ -40,12 +40,11 @@ func Default() *Config {
 		LastUpdateTime: time.Now().Format(time.RFC3339),
 		QueueNo:        0,
 		Web: webserver.Config{
-			Enable:            true,
-			Address:           ":8080",
-			BasicAuthUser:     "root",
-			BasicAuthPassword: "root",
-			StaticDir:         "/etc/yfw/frontend",
-			EnableCORS:        true,
+			Enable:     true,
+			Address:    ":8080",
+			Token:      "token",
+			StaticDir:  "/etc/yfw/frontend",
+			EnableCORS: true,
 		},
 		Cmd: cmdserver.Config{
 			Enable:     true,

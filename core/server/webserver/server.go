@@ -14,7 +14,15 @@ var (
 	isRunning bool
 )
 
-func Start(handler Handler) error {
+type Config struct {
+	Enable     bool   `json:"enable"`
+	Address    string `json:"address"`
+	Token      string `json:"auth_token"`
+	StaticDir  string `json:"static_dir"`
+	EnableCORS bool   `json:"enable_cors"`
+}
+
+func Start(handler Handler, config Config) error {
 	// 初始化 echo 实例
 	e := echo.New()
 	// 隐藏Banner
@@ -22,11 +30,11 @@ func Start(handler Handler) error {
 	// 日志级别设置为OFF，关闭echo官方日志输出
 	e.Logger.SetOutput(io.Discard)
 	// 设置静态文件
-	if Cfg.StaticDir != "" {
-		e.Static("/", Cfg.StaticDir)
+	if config.StaticDir != "" {
+		e.Static("/", config.StaticDir)
 	}
 	// 设置跨域中间件
-	if Cfg.EnableCORS {
+	if config.EnableCORS {
 		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowOrigins:     []string{"*"}, // 允许所有来源
 			AllowMethods:     []string{echo.GET, echo.POST, echo.PUT, echo.DELETE, echo.OPTIONS},
@@ -35,9 +43,9 @@ func Start(handler Handler) error {
 		}))
 	}
 	// 设置 BasicAuth 中间件
-	if Cfg.BasicAuthUser != "" || Cfg.BasicAuthPassword != "" {
-		e.Use(middleware.BasicAuth(func(usr, pwd string, c echo.Context) (bool, error) {
-			return usr == Cfg.BasicAuthUser && pwd == Cfg.BasicAuthPassword, nil
+	if config.Token != "" {
+		e.Use(middleware.KeyAuth(func(auth string, c echo.Context) (bool, error) {
+			return auth == config.Token, nil
 		}))
 	}
 	// 必须放前面，提高api匹配优先级
@@ -45,7 +53,7 @@ func Start(handler Handler) error {
 	// 挂载接口
 	mount(api, handler)
 	// 启动服务器
-	go start(e, Cfg.Address)
+	go start(e, config.Address)
 	//
 	server = e
 	isRunning = true

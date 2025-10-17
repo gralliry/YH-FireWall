@@ -34,13 +34,11 @@ func Start() (err error) {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 	// 初始化管理器
-	rtable.Cfg = cfg.RuleTable
-	if err = rtable.Load(); err != nil {
+	if err = rtable.Load(cfg.RuleTable); err != nil {
 		return fmt.Errorf("failed to load rule table: %w", err)
 	}
 	// 初始化队列
-	queue.NfQueueNo = cfg.QueueNo
-	if err = queue.Start(Context); err != nil {
+	if err = queue.Start(Context, cfg.QueueNo); err != nil {
 		return fmt.Errorf("failed to start queue: %w", err)
 	}
 	// 初始化接口
@@ -54,15 +52,13 @@ func Start() (err error) {
 	}
 	// 设置cmd服务器
 	if cfg.Cmd.Enable {
-		cmdserver.Cfg = cfg.Cmd
-		if err = cmdserver.Start(hder); err != nil {
+		if err = cmdserver.Start(hder, cfg.Cmd); err != nil {
 			return fmt.Errorf("failed to start cmdserver: %w", err)
 		}
 	}
 	// 设置web服务器
 	if cfg.Web.Enable {
-		webserver.Cfg = cfg.Web
-		if err = webserver.Start(hder); err != nil {
+		if err = webserver.Start(hder, cfg.Web); err != nil {
 			return fmt.Errorf("failed to start webserver: %w", err)
 		}
 	}
@@ -73,11 +69,15 @@ func Close() error {
 	var errs []error
 	// 停止 cmdserver 监听
 	if cmdserver.IsRunning() {
-		errs = append(errs, cmdserver.Close())
+		if err := cmdserver.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	// 停止 webserver 监听
 	if webserver.IsRunning() {
-		errs = append(errs, webserver.Close())
+		if err := webserver.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	// 停止进程
 	if err := hder.Stop(); err != nil {

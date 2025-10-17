@@ -15,11 +15,16 @@ var (
 	isRunning bool
 )
 
-func Start(h Handler) (err error) {
+type Config struct {
+	Enable     bool   `json:"enable"`
+	SocketPath string `json:"socket_path"`
+}
+
+func Start(h Handler, config Config) (err error) {
 	// 删除残留的 cmdserver 文件
-	_ = os.Remove(Cfg.SocketPath)
+	_ = os.Remove(config.SocketPath)
 	// 监听 Unix 域套接字
-	listener, err = net.Listen("unix", Cfg.SocketPath)
+	listener, err = net.Listen("unix", config.SocketPath)
 	if err != nil {
 		return fmt.Errorf("failed to listen on socket: %w", err)
 	}
@@ -33,7 +38,9 @@ func Start(h Handler) (err error) {
 }
 
 func Close() error {
-	isRunning = false
+	if !isRunning {
+		return fmt.Errorf("cmdserver is not running")
+	}
 	return listener.Close()
 }
 

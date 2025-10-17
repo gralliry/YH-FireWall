@@ -1,11 +1,13 @@
 package webserver
 
 import (
+	"YH-FireWall/core/connection"
 	"YH-FireWall/core/rule"
 	"YH-FireWall/core/system"
 	"github.com/labstack/echo/v4"
 	"io"
 	"net/http"
+	"strconv"
 )
 
 type Handler interface {
@@ -16,7 +18,8 @@ type Handler interface {
 	EnableRule(id string, enable bool) bool
 	GetConfig() (string, error)
 	SetConfig(raw string) error
-	GetConnections() ([]system.Connection, error)
+	GetConnections() ([]connection.Connection, error)
+	CloseConnection(pid int32, fd uint32) error
 	GetInterfaces() ([]system.Interface, error)
 }
 
@@ -49,11 +52,11 @@ func mount(api *echo.Group, handler Handler) {
 	api.PUT("/rule/:id", func(c echo.Context) error {
 		id := c.Param("id")
 		if id == "" {
-			return c.NoContent(http.StatusBadRequest)
+			return c.String(http.StatusBadRequest, "id is required")
 		}
 		option := new(rule.Option)
 		if err := c.Bind(option); err != nil {
-			return err
+			return c.String(http.StatusBadRequest, err.Error())
 		}
 		if err := handler.UpdateRule(id, option); err != nil {
 			return err
@@ -64,7 +67,7 @@ func mount(api *echo.Group, handler Handler) {
 	api.DELETE("/rule/:id", func(c echo.Context) error {
 		id := c.Param("id")
 		if id == "" {
-			return c.NoContent(http.StatusBadRequest)
+			return c.String(http.StatusBadRequest, "id is required")
 		}
 		if err := handler.DeleteRule(id); err != nil {
 			return err
@@ -76,7 +79,7 @@ func mount(api *echo.Group, handler Handler) {
 	api.PUT("/rule/:id/enable", func(c echo.Context) error {
 		id := c.Param("id")
 		if id == "" {
-			return c.NoContent(http.StatusBadRequest)
+			return c.String(http.StatusBadRequest, "id is required")
 		}
 		if !handler.EnableRule(id, true) {
 			return c.NoContent(http.StatusBadRequest)
@@ -87,7 +90,7 @@ func mount(api *echo.Group, handler Handler) {
 	api.PUT("/rule/:id/disable", func(c echo.Context) error {
 		id := c.Param("id")
 		if id == "" {
-			return c.NoContent(http.StatusBadRequest)
+			return c.String(http.StatusBadRequest, "id is required")
 		}
 		if !handler.EnableRule(id, false) {
 			return c.NoContent(http.StatusBadRequest)
@@ -112,7 +115,6 @@ func mount(api *echo.Group, handler Handler) {
 		}
 		return c.NoContent(http.StatusOK)
 	})
-	//
 	api.GET("/connection", func(c echo.Context) error {
 		conns, err := handler.GetConnections()
 		if err != nil {
@@ -120,7 +122,28 @@ func mount(api *echo.Group, handler Handler) {
 		}
 		return c.JSON(http.StatusOK, conns)
 	})
-	//
+	api.DELETE("/connection/:pid/:fd", func(c echo.Context) error {
+		pid := c.Param("pid")
+		if pid == "" {
+			return c.String(http.StatusBadRequest, "pid is required")
+		}
+		pidInt32, err := strconv.ParseInt(pid, 10, 32)
+		if err != nil {
+			return c.String(http.StatusBadRequest, "invalid pid")
+		}
+		fd := c.Param("fd")
+		if fd == "" {
+			return c.String(http.StatusBadRequest, "fd is required")
+		}
+		fdUint32, err := strconv.ParseUint(fd, 10, 32)
+		if err != nil {
+			return c.String(http.StatusBadRequest, "invalid fd")
+		}
+		if err = handler.CloseConnection(int32(pidInt32), uint32(fdUint32)); err != nil {
+			return err
+		}
+		return c.NoContent(http.StatusOK)
+	})
 	api.GET("/interface", func(c echo.Context) error {
 		interfaces, err := handler.GetInterfaces()
 		if err != nil {

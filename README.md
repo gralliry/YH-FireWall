@@ -15,7 +15,7 @@ packet filtering and management.
 
 ---
 
-## Build
+## Build or Install
 
 ```bash
 
@@ -27,8 +27,6 @@ version='v1.0.0'
 # go tool dist list
 gox -osarch="linux/386 linux/amd64 linux/arm linux/arm64 linux/loong64 linux/mips linux/mips64 linux/mips64le linux/mipsle linux/ppc64 linux/ppc64le linux/riscv64 linux/s390x" -output="build/yfw-{{.OS}}-{{.Arch}}-$version" ./cmd
 ```
-
-## Install
 
 Make sure you have Go installed (`>=1.20`) and `iptables` available.
 
@@ -43,12 +41,7 @@ cd YH-Firewall
 
 # Build the project
 # Must be executed under root user
-go build -o /usr/local/bin/yfw ./cmd && chmod +x /usr/local/bin/yfw
-
-sudo yum install conntrack-tools -y
-sudo yum install tcpkill -y
-sudo yum install kmod -y
-
+go build -o /usr/local/bin/yfw . && chmod +x /usr/local/bin/yfw && yfw
 ```
 
 ## Usage
@@ -85,7 +78,7 @@ yfw web status
 ```bash
 # List all rules
 yfw rule list
-
+[config.go](core%2Fconfig%2Fconfig.go)
 # Get a specific rule
 yfw rule list <rule_id>
 

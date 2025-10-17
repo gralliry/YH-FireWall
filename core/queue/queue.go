@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"YH-FireWall/core/ctable"
 	"YH-FireWall/core/rtable"
 	"context"
 	"errors"
@@ -10,14 +9,10 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/netlink"
+	"log"
 	"net"
-	"os"
 	"os/exec"
 	"time"
-)
-
-var (
-	NfQueueNo uint16
 )
 
 var (
@@ -25,9 +20,9 @@ var (
 )
 
 var cmdSet = `
-sudo iptables -C INPUT   -j NFQUEUE --queue-num %d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I INPUT   -j NFQUEUE --queue-num %d -m comment --comment "yfw"
-sudo iptables -C OUTPUT  -j NFQUEUE --queue-num %d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I OUTPUT  -j NFQUEUE --queue-num %d -m comment --comment "yfw"
-sudo iptables -C FORWARD -j NFQUEUE --queue-num %d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I FORWARD -j NFQUEUE --queue-num %d -m comment --comment "yfw"
+sudo iptables -C INPUT   -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I INPUT   -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
+sudo iptables -C OUTPUT  -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I OUTPUT  -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
+sudo iptables -C FORWARD -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I FORWARD -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
 `
 
 var cmdUnset = `
@@ -36,10 +31,10 @@ sudo iptables -L OUTPUT  --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}'
 sudo iptables -L FORWARD --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}' | xargs -r sudo iptables -D FORWARD
 `
 
-func Start(ctx context.Context) (err error) {
+func Start(ctx context.Context, nfqNo uint16) (err error) {
 	// 打开队列
 	nfq, err = nfqueue.Open(&nfqueue.Config{
-		NfQueue:      NfQueueNo,
+		NfQueue:      nfqNo,
 		MaxPacketLen: 2048,
 		MaxQueueLen:  2048,
 		Copymode:     nfqueue.NfQnlCopyPacket,
@@ -54,9 +49,9 @@ func Start(ctx context.Context) (err error) {
 		return err
 	}
 	// 设置包导向
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, NfQueueNo, NfQueueNo, NfQueueNo, NfQueueNo, NfQueueNo, NfQueueNo))
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, nfqNo))
+	cmd.Stdout = nil
+	cmd.Stderr = nil
 	if err = cmd.Run(); err != nil {
 		return err
 	}
@@ -67,8 +62,8 @@ func Close() error {
 	var errs []error
 	// 使用 bash 执行多行命令
 	cmd := exec.Command("bash", "-c", cmdUnset)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = nil
+	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
 		errs = append(errs, err)
 	}
@@ -125,9 +120,23 @@ func handler(a nfqueue.Attribute) int {
 		_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
 		return 0
 	}
-	// 写入 ctable // 这个因为没有结果上的关系，可以使用异步处理
-	ctable.Push(protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
+	//pringLog(protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
 	// 继续处理
 	_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfAccept)
 	return 0
+}
+
+func pringLog(proto layers.IPProtocol, srcIP net.IP, srcPort uint16, dstIP net.IP, dstPort uint16, inDev *uint32, outDev *uint32) {
+	var direction string
+	switch {
+	case inDev == nil && outDev == nil:
+		direction = "   ->   "
+	case inDev == nil:
+		direction = fmt.Sprintf("%3d->   ", *outDev)
+	case outDev == nil:
+		direction = fmt.Sprintf("   ->%-3d", *inDev)
+	default:
+		direction = fmt.Sprintf("%3d->%-3d", *inDev, *outDev)
+	}
+	log.Printf("[%5s] %15s:%5d -> %15s:%5d (%s)", proto, srcIP, srcPort, dstIP, dstPort, direction)
 }

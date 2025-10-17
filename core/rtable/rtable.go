@@ -22,24 +22,33 @@ var (
 	ruleIsListDirty bool
 	mutex           sync.RWMutex
 	file            *os.File
+
+	defaultAccept = true
 )
 
-func Load() (err error) {
+type Config struct {
+	Path          string `json:"path"`
+	DefaultAccept bool   `json:"default_accept"`
+}
+
+func Load(config Config) (err error) {
 	mutex.Lock()
 	defer mutex.Unlock()
+	//
+	defaultAccept = config.DefaultAccept
 	// 确保目录存在
-	if err = os.MkdirAll(path.Dir(Cfg.Path), 0755); err != nil {
+	if err = os.MkdirAll(path.Dir(config.Path), 0755); err != nil {
 		return fmt.Errorf("failed to create directory for rule table: %w", err)
 	}
 	// 打开文件
-	file, err = os.OpenFile(Cfg.Path, os.O_RDWR|os.O_CREATE, 0644)
+	file, err = os.OpenFile(config.Path, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", Cfg.Path, err)
+		return fmt.Errorf("failed to open file %s: %w", config.Path, err)
 	}
 	// 尝试独占锁（非阻塞）
 	if err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		_ = file.Close()
-		return fmt.Errorf("failed to lock file %s: %w", Cfg.Path, err)
+		return fmt.Errorf("failed to lock file %s: %w", config.Path, err)
 	}
 	// 设置默认规则
 	rules := make([]rule.Config, 0)
@@ -183,10 +192,10 @@ func Match(srcIP net.IP, srcPort uint16, dstIP net.IP, dstPort uint16, inDev *ui
 			return r.Accept()
 		}
 	}
-	return Cfg.DefaultAccept
+	return defaultAccept
 }
 
-func GetRule(rid string) *rule.Config {
+func Get(rid string) *rule.Config {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	if rr, exists := ruleMap[rid]; !exists {
@@ -204,13 +213,13 @@ func getRules() []rule.Config {
 	return rules
 }
 
-func GetRules() []rule.Config {
+func GetAll() []rule.Config {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	return getRules()
 }
 
-func SetAbleRule(id string, enable bool) bool {
+func Enable(id string, enable bool) bool {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	rr, exists := ruleMap[id]
