@@ -50,8 +50,6 @@ func Start(ctx context.Context, nfqNo uint16) (err error) {
 	}
 	// 设置包导向
 	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, nfqNo))
-	cmd.Stdout = nil
-	cmd.Stderr = nil
 	if err = cmd.Run(); err != nil {
 		return err
 	}
@@ -62,8 +60,6 @@ func Close() error {
 	var errs []error
 	// 使用 bash 执行多行命令
 	cmd := exec.Command("bash", "-c", cmdUnset)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
 		errs = append(errs, err)
 	}
