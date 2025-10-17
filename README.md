@@ -18,26 +18,22 @@ packet filtering and management.
 ## Build
 
 ```bash
-sudo go build -o yfw ./cmd 
 
-sudo cp yfw /usr/local/bin/
-
-sudo chmod +x /usr/local/bin/yfw
 ```
 
 ```bash
-go install github.com/mitchellh/gox@latest
-
+# go install github.com/mitchellh/gox@latest
 version='v1.0.0'
-
-go tool dist list
-
+# go tool dist list
 gox -osarch="linux/386 linux/amd64 linux/arm linux/arm64 linux/loong64 linux/mips linux/mips64 linux/mips64le linux/mipsle linux/ppc64 linux/ppc64le linux/riscv64 linux/s390x" -output="build/yfw-{{.OS}}-{{.Arch}}-$version" ./cmd
 ```
 
 ## Install
 
 Make sure you have Go installed (`>=1.20`) and `iptables` available.
+
+And `conntrack` installed.
+And `tcpkill` installed.
 
 ```bash
 # Clone the repository
@@ -46,11 +42,18 @@ git clone https://github.com/gralliry/YH-Firewall.git
 cd YH-Firewall
 
 # Build the project
-go build -o yfw ./cmd
+# Must be executed under root user
+go build -o /usr/local/bin/yfw ./cmd && chmod +x /usr/local/bin/yfw
+
+sudo yum install conntrack-tools -y
+sudo yum install tcpkill -y
+sudo yum install kmod -y
+
 ```
 
 ## Usage
 
+### Core
 Run the firewall service:
 
 ```bash
@@ -64,7 +67,7 @@ yfw stop
 yfw status
 ```
 
-## Web Interface
+### Web Interface
 
 ```bash
 # Start web interface: yfw web start <address> <username> <password>
@@ -77,7 +80,7 @@ yfw web stop
 yfw web status
 ```
 
-## Rule Management
+### Rule Management
 
 ```bash
 # List all rules
@@ -100,12 +103,29 @@ yfw rule enable <rule_id>
 yfw rule disable <rule_id>
 ```
 
-## Group Management
+### Group Management
 
 ```bash
 # Enable/disable a group
 yfw group enable <group_name>
 yfw group disable <group_name>
+```
+
+### Other
+
+```bash
+# Show all rules
+sudo iptables -L -n -v
+# 
+QUEUE_NUM=1
+# Append NFQUEUE to INPUT/OUTPUT/FORWARD
+sudo iptables -I INPUT   -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+sudo iptables -I OUTPUT  -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+sudo iptables -I FORWARD -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+# Delete all rules with yfw comment
+sudo iptables -D INPUT   -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+sudo iptables -D OUTPUT  -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+sudo iptables -D FORWARD -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
 ```
 
 ## License

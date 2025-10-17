@@ -17,11 +17,6 @@ import (
 )
 
 var (
-	RuleTablePath string
-	DefaultAccept bool
-)
-
-var (
 	ruleList        []*rule.Rule
 	ruleMap         map[string]*rule.Rule
 	ruleIsListDirty bool
@@ -33,18 +28,18 @@ func Load() (err error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	// 确保目录存在
-	if err = os.MkdirAll(path.Dir(RuleTablePath), 0755); err != nil {
+	if err = os.MkdirAll(path.Dir(Cfg.Path), 0755); err != nil {
 		return fmt.Errorf("failed to create directory for rule table: %w", err)
 	}
 	// 打开文件
-	file, err = os.OpenFile(RuleTablePath, os.O_RDWR|os.O_CREATE, 0644)
+	file, err = os.OpenFile(Cfg.Path, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", RuleTablePath, err)
+		return fmt.Errorf("failed to open file %s: %w", Cfg.Path, err)
 	}
 	// 尝试独占锁（非阻塞）
 	if err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		_ = file.Close()
-		return fmt.Errorf("failed to lock file %s: %w", RuleTablePath, err)
+		return fmt.Errorf("failed to lock file %s: %w", Cfg.Path, err)
 	}
 	// 设置默认规则
 	rules := make([]rule.Config, 0)
@@ -188,7 +183,7 @@ func Match(srcIP net.IP, srcPort uint16, dstIP net.IP, dstPort uint16, inDev *ui
 			return r.Accept()
 		}
 	}
-	return DefaultAccept
+	return Cfg.DefaultAccept
 }
 
 func GetRule(rid string) *rule.Config {

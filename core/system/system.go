@@ -10,6 +10,7 @@ import (
 )
 
 type Connection struct {
+	Fd uint32 `json:"fd"`
 	// Family uint32 `json:"family"` // 2: ipv4, 10: ipv6
 	Type     uint32 `json:"type"` // 1: tcp, 2: udp
 	Pid      int32  `json:"pid"`
@@ -27,6 +28,7 @@ func GetConnections() ([]Connection, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 获取进程信息
 	processMap := make(map[int32]*process.Process)
 	for _, pc := range processList {
 		processMap[pc.Pid] = pc
@@ -53,6 +55,7 @@ func GetConnections() ([]Connection, error) {
 		}
 		// 构造连接
 		nc := Connection{
+			Fd:     conn.Fd,
 			Type:   conn.Type,
 			Pid:    conn.Pid,
 			Laddr:  net.JoinHostPort(conn.Laddr.IP, strconv.Itoa(int(conn.Laddr.Port))),

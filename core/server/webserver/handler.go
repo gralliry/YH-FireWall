@@ -5,7 +5,6 @@ import (
 	"YH-FireWall/core/system"
 	"github.com/labstack/echo/v4"
 	"io"
-	"log"
 	"net/http"
 )
 
@@ -99,7 +98,6 @@ func mount(api *echo.Group, handler Handler) {
 	api.GET("/config", func(c echo.Context) error {
 		data, err := handler.GetConfig()
 		if err != nil {
-			log.Println("get config error:", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 		return c.String(http.StatusOK, data)

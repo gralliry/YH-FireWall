@@ -1,8 +1,12 @@
 package config
 
 import (
+	"YH-FireWall/core/rtable"
+	"YH-FireWall/core/server/cmdserver"
+	"YH-FireWall/core/server/webserver"
 	"errors"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"os"
 	"path"
 	"syscall"
@@ -20,40 +24,37 @@ var (
 )
 
 type Config struct {
-	LastUpdateDate string `json:"last_update_date"`
+	LastUpdateTime string `json:"last_update_time"`
 
 	QueueNo uint16 `json:"queue_no"`
 
-	WebEnable            bool   `json:"web_enable"`
-	WebAddress           string `json:"web_address"`
-	WebBasicAuthUser     string `json:"web_basic_auth_user"`
-	WebBasicAuthPassword string `json:"web_basic_auth_password"`
-	WebStaticDir         string `json:"web_static_dir"`
+	Web webserver.Config `json:"web"`
 
-	CmdEnable     bool   `json:"cmd_enable"`
-	CmdSocketPath string `json:"cmd_socket_path"`
+	Cmd cmdserver.Config `json:"cmd"`
 
-	RuleTablePath          string `json:"rule_table_path"`
-	RuleTableDefaultAccept bool   `json:"rule_table_default_accept"`
+	RuleTable rtable.Config `json:"rule_table"`
 }
 
 func Default() *Config {
 	return &Config{
-		LastUpdateDate: time.Now().Format(time.RFC3339),
-
-		QueueNo: 0,
-
-		WebEnable:            true,
-		WebAddress:           ":8080",
-		WebStaticDir:         "front/dist",
-		WebBasicAuthUser:     "root",
-		WebBasicAuthPassword: "root",
-
-		CmdEnable:     true,
-		CmdSocketPath: "/tmp/yfw.sock",
-
-		RuleTablePath:          "/etc/yfw/rule.json",
-		RuleTableDefaultAccept: true,
+		LastUpdateTime: time.Now().Format(time.RFC3339),
+		QueueNo:        0,
+		Web: webserver.Config{
+			Enable:            true,
+			Address:           ":8080",
+			BasicAuthUser:     "root",
+			BasicAuthPassword: "root",
+			StaticDir:         "/etc/yfw/frontend",
+			EnableCORS:        true,
+		},
+		Cmd: cmdserver.Config{
+			Enable:     true,
+			SocketPath: "/tmp/yfw.sock",
+		},
+		RuleTable: rtable.Config{
+			Path:          "/etc/yfw/rule.json",
+			DefaultAccept: true,
+		},
 	}
 }
 
@@ -91,8 +92,23 @@ func Read() (content []byte, err error) {
 	return buf, nil
 }
 
+func Load() (cfg *Config, err error) {
+	content, err := Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config: %w", err)
+	}
+	cfg = Default()
+	if err = yaml.Unmarshal(content, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+	return cfg, nil
+}
+
 func Store(buf []byte) error {
-	// 重置文件指针
+	var cfg Config
+	if err := yaml.Unmarshal(buf, &cfg); err != nil {
+		return fmt.Errorf("failed to unmarshal config: %w", err)
+	}
 	if _, err := file.Seek(0, 0); err != nil {
 		return fmt.Errorf("failed to seek file: %w", err)
 	}

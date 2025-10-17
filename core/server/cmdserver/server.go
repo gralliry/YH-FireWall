@@ -11,19 +11,15 @@ import (
 )
 
 var (
-	SocketPath string
-)
-
-var (
 	listener  net.Listener
 	isRunning bool
 )
 
 func Start(h Handler) (err error) {
 	// 删除残留的 cmdserver 文件
-	_ = os.Remove(SocketPath)
+	_ = os.Remove(Cfg.SocketPath)
 	// 监听 Unix 域套接字
-	listener, err = net.Listen("unix", SocketPath)
+	listener, err = net.Listen("unix", Cfg.SocketPath)
 	if err != nil {
 		return fmt.Errorf("failed to listen on socket: %w", err)
 	}

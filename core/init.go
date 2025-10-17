@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 )
 
@@ -30,17 +29,12 @@ func Start() (err error) {
 	if err = config.Init(); err != nil {
 		return fmt.Errorf("failed to initialize config: %w", err)
 	}
-	data, err := config.Read()
+	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("failed to read config: %w", err)
-	}
-	cfg := config.Default()
-	if err = yaml.Unmarshal(data, &cfg); err != nil {
-		return fmt.Errorf("failed to unmarshal config: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 	// 初始化管理器
-	rtable.RuleTablePath = cfg.RuleTablePath
-	rtable.DefaultAccept = cfg.RuleTableDefaultAccept
+	rtable.Cfg = cfg.RuleTable
 	if err = rtable.Load(); err != nil {
 		return fmt.Errorf("failed to load rule table: %w", err)
 	}
@@ -59,18 +53,15 @@ func Start() (err error) {
 		return fmt.Errorf("failed to start handler: %w", err)
 	}
 	// 设置cmd服务器
-	if cfg.CmdEnable {
-		cmdserver.SocketPath = cfg.CmdSocketPath
+	if cfg.Cmd.Enable {
+		cmdserver.Cfg = cfg.Cmd
 		if err = cmdserver.Start(hder); err != nil {
 			return fmt.Errorf("failed to start cmdserver: %w", err)
 		}
 	}
 	// 设置web服务器
-	if cfg.WebEnable {
-		webserver.Address = cfg.WebAddress
-		webserver.BasicAuthUser = cfg.WebBasicAuthUser
-		webserver.BasicAuthPassword = cfg.WebBasicAuthPassword
-		webserver.StaticDir = cfg.WebStaticDir
+	if cfg.Web.Enable {
+		webserver.Cfg = cfg.Web
 		if err = webserver.Start(hder); err != nil {
 			return fmt.Errorf("failed to start webserver: %w", err)
 		}

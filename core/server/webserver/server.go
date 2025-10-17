@@ -14,13 +14,6 @@ var (
 	isRunning bool
 )
 
-var (
-	Address           string
-	BasicAuthUser     string
-	BasicAuthPassword string
-	StaticDir         string
-)
-
 func Start(handler Handler) error {
 	// 初始化 echo 实例
 	e := echo.New()
@@ -29,20 +22,22 @@ func Start(handler Handler) error {
 	// 日志级别设置为OFF，关闭echo官方日志输出
 	e.Logger.SetOutput(io.Discard)
 	// 设置静态文件
-	if StaticDir != "" {
-		e.Static("/", StaticDir)
+	if Cfg.StaticDir != "" {
+		e.Static("/", Cfg.StaticDir)
 	}
 	// 设置跨域中间件
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"*"}, // 允许所有来源
-		AllowMethods:     []string{echo.GET, echo.POST, echo.PUT, echo.DELETE, echo.OPTIONS},
-		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
-		AllowCredentials: true,
-	}))
+	if Cfg.EnableCORS {
+		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowOrigins:     []string{"*"}, // 允许所有来源
+			AllowMethods:     []string{echo.GET, echo.POST, echo.PUT, echo.DELETE, echo.OPTIONS},
+			AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+			AllowCredentials: true,
+		}))
+	}
 	// 设置 BasicAuth 中间件
-	if BasicAuthPassword != "" {
+	if Cfg.BasicAuthUser != "" || Cfg.BasicAuthPassword != "" {
 		e.Use(middleware.BasicAuth(func(usr, pwd string, c echo.Context) (bool, error) {
-			return usr == BasicAuthUser && pwd == BasicAuthPassword, nil
+			return usr == Cfg.BasicAuthUser && pwd == Cfg.BasicAuthPassword, nil
 		}))
 	}
 	// 必须放前面，提高api匹配优先级
@@ -50,7 +45,7 @@ func Start(handler Handler) error {
 	// 挂载接口
 	mount(api, handler)
 	// 启动服务器
-	go start(e, Address)
+	go start(e, Cfg.Address)
 	//
 	server = e
 	isRunning = true

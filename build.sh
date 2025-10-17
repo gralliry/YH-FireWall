@@ -1,1 +1,0 @@
-go build -o /usr/local/bin/yfw ./cmd && sudo chmod +x /usr/local/bin/yfw
