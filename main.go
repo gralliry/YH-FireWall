@@ -2,19 +2,22 @@ package main
 
 import (
 	"YH-FireWall/core"
+	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 )
 
 func main() {
-	if len(os.Args) <= 1 {
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: yfw core|cli")
+	}
+	switch os.Args[1] {
+	case "core":
 		// syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP
 		ctx, stop := signal.NotifyContext(context.Background(),
 			syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP)
@@ -38,7 +41,7 @@ func main() {
 		} else {
 			log.Printf("Core service stopped successfully")
 		}
-	} else {
+	case "cli":
 		// 运行客户端
 		conn, err := net.Dial("unix", "/tmp/yfw.sock")
 		if err != nil {
@@ -46,16 +49,31 @@ func main() {
 			log.Println("Please start it with: yfw")
 			os.Exit(1)
 		}
-		cmd := strings.Join(os.Args, " ")
-		if _, err = conn.Write([]byte(cmd)); err != nil {
-			log.Fatal("Failed to send command:", err)
-		}
-		result, err := io.ReadAll(conn)
-		if err != nil {
-			log.Fatal("Failed to read result:", err)
-		}
-		_ = conn.Close()
 
-		fmt.Print(string(result))
+		reader := bufio.NewReader(os.Stdin)
+		server := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+		for {
+			fmt.Print("> ")
+			input, err := reader.ReadBytes('\n') // 读到回车为止
+			if err != nil {
+				log.Fatal("Failed to read command:", err)
+			}
+			// 这里会把换行符写入，作为服务端读取的结束符
+			if _, err = server.Write(input); err != nil {
+				log.Fatal("Failed to send command:", err)
+			}
+			if err = server.Flush(); err != nil {
+				log.Fatal("Failed to send command:", err)
+			}
+			// 0 作为客户端读取结束符，服务端会返回一个0作为结束符，这里会读取到这个结束符，然后结束读取
+			result, err := server.ReadString(0)
+			if err != nil {
+				log.Fatal("Failed to read result:", err)
+			}
+			fmt.Print(result)
+		}
+	default:
+		log.Println("Usage: yfw core|cli")
 	}
 }

@@ -1,13 +1,14 @@
 package cmdserver
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/google/shlex"
 	"log"
 	"net"
 	"os"
-	"strings"
 )
 
 var (
@@ -61,26 +62,46 @@ func acceptConn() {
 
 func handleConn(conn net.Conn) {
 	defer func() { _ = conn.Close() }()
-	// 创建缓冲区
-	cmdBytes := make([]byte, 1024)
-	// 读取命令
-	n, err := conn.Read(cmdBytes)
-	if err != nil {
-		_, _ = conn.Write([]byte(err.Error()))
-		return
-	}
-	// 处理命令(这里要截取，不如会取到后面的未写入字符)
-	cmdStr := strings.TrimSpace(string(cmdBytes[:n]))
-	// 解析命令
-	args, err := shlex.Split(cmdStr)
-	if err != nil {
-		_, _ = conn.Write([]byte(err.Error()))
-		return
-	}
-	//
-	log.Printf("Args(%d): %v", len(args), args)
+
 	// 解析并执行命令
-	result := handleArgs(args) + "\n"
-	// 返回结果
-	_, _ = conn.Write([]byte(result))
+	cmder := newCommand(handler)
+	var outBuf, errBuf bytes.Buffer
+	cmder.SetOut(&outBuf)
+	cmder.SetErr(&errBuf)
+	//
+	client := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+	for {
+		outBuf.Reset()
+		errBuf.Reset()
+		// 读取命令
+		command, err := client.ReadString('\n')
+		if err != nil {
+			return
+		}
+		// 解析命令
+		args, err := shlex.Split(command)
+		if err != nil {
+			return
+		}
+		// todo 参数读取展示
+		log.Printf("Args(%d): %v", len(args), args)
+		// 设置命令参数
+		cmder.SetArgs(args)
+		if _, err = cmder.ExecuteC(); err != nil {
+			if _, err = client.Write(errBuf.Bytes()); err != nil {
+				return
+			}
+		} else {
+			if _, err = client.Write(outBuf.Bytes()); err != nil {
+				return
+			}
+		}
+		if err = client.WriteByte(0); err != nil {
+			return
+		}
+		if err = client.Flush(); err != nil {
+			return
+		}
+	}
 }

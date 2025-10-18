@@ -3,8 +3,7 @@ package cmdserver
 import (
 	"YH-FireWall/core/rule"
 	"encoding/json"
-	"fmt"
-	"strings"
+	"github.com/spf13/cobra"
 )
 
 type Handler interface {
@@ -24,170 +23,256 @@ type Handler interface {
 
 var handler Handler
 
-// Use 4 spaces instead of \t
-const tips = `
-Usage: %s <command> [<args>]
-Commands:
-    - start         Start the firewall service.               Example. yfw start
-    - stop          Stop the firewall service.                Example. yfw stop
-    - status        Check the status of the firewall service. Example. yfw status
-    - r/rule
-        - l/ls/list               Example. yfw rule list
-            - {id}                Example. yfw rule list DSHUIC90
-        - a/add/append {config}   Example. yfw rule add '{"tar_net":"0.0.0.0/0"}'
-        - r/remove {id}           Example. yfw rule remove 12345678
-        - c/change {id} {config}  Example. yfw rule change 12345678 '{"tar_net":"0.0.0.0/0"}'
-        - e/enable {id}
-        - d/disable {id}
-    - c/cfg/config
-    - h/help       Display this help message
-    - v/version
-`
-
-func handleArgs(args []string) string {
-	if len(args) == 0 {
-		return fmt.Sprintf(tips, "No Any Param")
+func newCommand(handler Handler) *cobra.Command {
+	cmdRoot := &cobra.Command{
+		Use:   "yfw",
+		Short: "YH Firewall CLI tool",
+		Long:  "YH Firewall is a powerful firewall service that can be controlled via command line interface.",
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.PrintErrln("Usage: yfw <command> [<args>]")
+		},
 	}
-	if len(args) == 1 {
-		return fmt.Sprintf(tips, args[0])
+	//  start
+	cmdStart := &cobra.Command{
+		Use:   "start",
+		Short: "Start the YH Firewall service",
+		Long:  "Start the YH Firewall service in the background.",
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.Println("yfw has started")
+		},
+		Example: `
+yfw start
+`,
 	}
-	switch args[1] {
-	case "start":
-		// yfw start
-		return "How do you get there? ! It is impossible!"
-	case "status":
-		// yfw status
-		return handleStatus(args[2:])
-	case "stop":
-		return handleStop(args[2:])
-	case "r", "rule":
-		// yfw r/rule
-		return handleRule(args[2:])
-	case "c", "cfg", "config":
-		if data, err := handler.GetConfig(); err != nil {
-			return err.Error()
-		} else {
-			return data
-		}
-	case "h", "help":
-		// yfw h/help
-		return fmt.Sprintf(tips, args[0])
-	case "v", "version":
-		// yfw h/help
-		return handler.Version()
-	default:
-		return fmt.Sprintf("Unknown Command {%s}. Use help.", args[1])
+	cmdRoot.AddCommand(cmdStart)
+	//  stop
+	cmdStop := &cobra.Command{
+		Use:   "stop",
+		Short: "Stop the YH Firewall service",
+		Long:  "Stop the running YH Firewall service gracefully.",
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := handler.Stop(); err != nil {
+				cmd.Println("YFW has tried to stop but error occurred. Use status to check the status")
+			} else {
+				cmd.Println("YFW Stopped")
+			}
+		},
+		Example: `
+yfw stop
+`,
 	}
-}
-
-func handleStatus(_ []string) string {
-	// yfw status
-	return "ok"
-}
-
-// Stop 停止服务
-func handleStop(_ []string) string {
-	// yfw stop
-	if err := handler.Stop(); err != nil {
-		return "YFW has tried to stop but error occurred. Use status to check the status"
+	cmdRoot.AddCommand(cmdStop)
+	//  status
+	cmdStatus := &cobra.Command{
+		Use:   "status",
+		Short: "Check the status of YH Firewall service",
+		Long:  "Display the current running status of the YH Firewall service.",
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.Println("ok")
+		},
+		Example: `
+yfw status
+`,
 	}
-	return "YFW Stopped"
-}
-
-// -----------------------------------------------------------------
-func handleRule(args []string) string {
-	if len(args) == 0 {
-		return "Rule: Missing subcommand"
+	cmdRoot.AddCommand(cmdStatus)
+	// rule
+	cmdRule := &cobra.Command{
+		Use:     "rule",
+		Aliases: []string{"r"},
+		Short:   "Manage firewall rules",
+		Long:    "Manage firewall rules including listing, adding, removing, and modifying rules.",
+		Example: `
+yfw rule list
+yfw rule append '{"action":"allow","protocol":"tcp","port":80}'
+yfw rule remove RULE_ID
+yfw rule change RULE_ID '{"action":"deny","protocol":"tcp","port":80}'
+yfw rule enable RULE_ID
+yfw rule disable RULE_ID
+`,
 	}
-	switch args[0] {
-	case "l", "ls", "list":
-		return handleRuleList(args[1:])
-	case "a", "add", "append":
-		return handleRuleAppend(args[1:])
-	case "r", "remove":
-		return handleRuleRemove(args[1:])
-	case "c", "change":
-		return handleRuleChange(args[1:])
-	case "e", "enable":
-		return handleRuleEnable(args[1:])
-	case "d", "disable":
-		return handleRuleDisable(args[1:])
-	default:
-		return "Unknown rule subcommand"
+	cmdRoot.AddCommand(cmdRule)
+	// rule list
+	cmdRuleList := &cobra.Command{
+		Use:   "list",
+		Short: "List all firewall rules or a specific rule",
+		Long:  "List all firewall rules if no argument provided, or display a specific rule by ID.",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				rules := handler.GetRules()
+				for _, r := range rules {
+					cmd.Print(r.String())
+				}
+			} else {
+				r := handler.GetRule(args[0])
+				if r == nil {
+					cmd.PrintErrln("No such rule")
+				} else {
+					cmd.Print(r.String())
+				}
+			}
+		},
+		Example: `
+yfw rule list
+yfw rule list RULE_ID
+`,
 	}
-}
-
-func handleRuleList(args []string) string {
-	if len(args) == 0 {
-		rules := handler.GetRules()
-		var sb strings.Builder
-		for _, r := range rules {
-			sb.WriteString(r.String())
-		}
-		return sb.String()
-	} else {
-		r := handler.GetRule(args[0])
-		if r == nil {
-			return "No such rule"
-		}
-		return r.String()
+	cmdRule.AddCommand(cmdRuleList)
+	// rule append
+	cmdRuleAppend := &cobra.Command{
+		Use:     "append",
+		Aliases: []string{"a", "add"},
+		Short:   "Add a new firewall rule",
+		Long:    "Add a new firewall rule with the provided configuration in JSON format.",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				cmd.PrintErrln("Usage: append {config}")
+				return
+			}
+			var ro rule.Option
+			if err := json.Unmarshal([]byte(args[0]), &ro); err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			if _, err := handler.AppendRule(&ro); err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			cmd.Println("Rule Appended")
+		},
+		Example: `
+yfw rule append '{"action":"allow","protocol":"tcp","port":80}'
+yfw rule a '{"action":"deny","protocol":"udp","port":53}'
+`,
 	}
-}
-
-func handleRuleAppend(args []string) string {
-	if len(args) == 0 {
-		return "Usage: append {config}"
+	cmdRule.AddCommand(cmdRuleAppend)
+	// rule remove
+	cmdRuleRemove := &cobra.Command{
+		Use:     "remove",
+		Aliases: []string{"r", "rm", "del", "delete"},
+		Short:   "Remove a firewall rule",
+		Long:    "Remove a firewall rule by its ID.",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				cmd.PrintErrln("Usage: remove {id}")
+				return
+			}
+			if err := handler.DeleteRule(args[0]); err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			cmd.Println("Rule Removed")
+		},
+		Example: `
+yfw rule remove RULE_ID
+yfw rule rm RULE_ID
+yfw rule del RULE_ID
+`,
 	}
-	var ro rule.Option
-	if err := json.Unmarshal([]byte(args[0]), &ro); err != nil {
-		return err.Error()
+	cmdRule.AddCommand(cmdRuleRemove)
+	//
+	cmdRuleChange := &cobra.Command{
+		Use:     "change",
+		Aliases: []string{"c", "modify", "update"},
+		Short:   "Modify an existing firewall rule",
+		Long:    "Update an existing firewall rule with new configuration by providing the rule ID and new JSON configuration.",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) != 2 {
+				cmd.PrintErrln("Usage: change {id} {config}")
+				return
+			}
+			var ro rule.Option
+			if err := json.Unmarshal([]byte(args[1]), &ro); err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			if err := handler.UpdateRule(args[0], &ro); err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			cmd.Println("Rule Updated")
+		},
+		Example: `
+yfw rule change RULE_ID '{"action":"deny","protocol":"tcp","port":80}'
+yfw rule update RULE_ID '{"action":"allow","protocol":"udp","port":53}'
+`,
 	}
-	if _, err := handler.AppendRule(&ro); err != nil {
-		return err.Error()
+	cmdRule.AddCommand(cmdRuleChange)
+	//
+	cmdRuleEnable := &cobra.Command{
+		Use:     "enable",
+		Aliases: []string{"e", "en"},
+		Short:   "Enable a firewall rule",
+		Long:    "Enable a previously disabled firewall rule by its ID.",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				cmd.PrintErrln("Usage: enable {id}")
+				return
+			}
+			if !handler.EnableRule(args[0], true) {
+				cmd.PrintErrln("No such rule")
+				return
+			}
+			cmd.Println("ok")
+		},
+		Example: `
+yfw rule enable RULE_ID
+`,
 	}
-	return "ok"
-}
-
-func handleRuleRemove(args []string) string {
-	if len(args) == 0 {
-		return "Usage: remove {id}"
+	cmdRule.AddCommand(cmdRuleEnable)
+	//
+	cmdRuleDisable := &cobra.Command{
+		Use:     "disable",
+		Aliases: []string{"d", "dis"},
+		Short:   "Disable a firewall rule",
+		Long:    "Disable an active firewall rule by its ID.",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				cmd.PrintErrln("Usage: disable {id}")
+				return
+			}
+			if !handler.EnableRule(args[0], false) {
+				cmd.PrintErrln("No such rule")
+				return
+			}
+			cmd.Println("ok")
+		},
+		Example: `
+yfw rule disable RULE_ID
+`,
 	}
-	if err := handler.DeleteRule(args[0]); err != nil {
-		return err.Error()
+	cmdRule.AddCommand(cmdRuleDisable)
+	// config
+	cmdConfig := &cobra.Command{
+		Use:     "config",
+		Aliases: []string{"c", "cfg"},
+		Short:   "Get current configuration",
+		Long:    "Display the current configuration of the YH Firewall service.",
+		Run: func(cmd *cobra.Command, args []string) {
+			if data, err := handler.GetConfig(); err != nil {
+				cmd.PrintErrln(err)
+			} else {
+				cmd.Println(data)
+			}
+		},
+		Example: `
+yfw config
+`,
 	}
-	return "ok"
-}
-
-func handleRuleChange(args []string) string {
-	if len(args) != 2 {
-		return "Usage: change {id} {config}"
+	cmdRoot.AddCommand(cmdConfig)
+	// version
+	cmdVersion := &cobra.Command{
+		Use:     "version",
+		Aliases: []string{"v"},
+		Short:   "Display version information",
+		Long:    "Show the current version of the YH Firewall service.",
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.Println(handler.Version())
+		},
+		Example: `
+yfw version
+yfw v
+`,
 	}
-	var ro rule.Option
-	if err := json.Unmarshal([]byte(args[1]), &ro); err != nil {
-		return err.Error()
-	}
-	if err := handler.UpdateRule(args[0], &ro); err != nil {
-		return err.Error()
-	}
-	return "ok"
-}
-
-func handleRuleEnable(args []string) string {
-	if len(args) == 0 {
-		return "Usage: enable {id}"
-	}
-	if handler.EnableRule(args[0], true) {
-		return "ok"
-	}
-	return "No such rule"
-}
-
-func handleRuleDisable(args []string) string {
-	if len(args) == 0 {
-		return "Usage: disable {id}"
-	}
-	if handler.EnableRule(args[0], false) {
-		return "ok"
-	}
-	return "No such rule"
+	cmdRoot.AddCommand(cmdVersion)
+	return cmdRoot
 }

@@ -73,8 +73,19 @@ func GetAll() ([]Connection, error) {
 }
 
 func Close(pid int32, fd uint32) error {
-	// 确保 gdb 在 PATH
-	call := fmt.Sprintf("call close(%d)", fd)
-	cmd := exec.Command("gdb", "-p", strconv.Itoa(int(pid)), "--batch", "-ex", call, "-ex", "detach", "-ex", "quit")
-	return cmd.Run()
+	call := fmt.Sprintf("call (int) close(%d)", fd)
+	cmd := exec.Command(
+		"gdb",
+		"-p", strconv.Itoa(int(pid)),
+		"--batch",
+		"-ex", call,
+		"-ex", "detach",
+		"-ex", "quit",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("gdb failed: %w, output: %s", err, out)
+	}
+	fmt.Println(string(out)) // 打印 gdb 执行结果，调试用
+	return nil
 }
