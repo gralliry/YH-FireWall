@@ -1,6 +1,6 @@
-package fp
+package funcall
 
-func Map[In any, Out any](s []In, f func(In) Out) []Out {
+func Convert[In any, Out any](s []In, f func(In) Out) []Out {
 	output := make([]Out, len(s))
 	for i, v := range s {
 		output[i] = f(v)
@@ -33,5 +33,26 @@ func List2Map[K comparable, V any](l []V, f func(V) K) map[K]V {
 	for _, v := range l {
 		output[f(v)] = v
 	}
+	return output
+}
+
+func Set[K comparable, V any](l []V, f func(V) K) []V {
+	output := make([]V, 0)
+	seen := make(map[K]struct{})
+	for _, v := range l {
+		k := f(v)
+		if _, e := seen[k]; e {
+			continue
+		}
+		seen[k] = struct{}{}
+		output = append(output, v)
+	}
+	return output
+}
+
+func Limit[T any](l []T, n int) []T {
+	n = min(max(0, n), len(l))
+	output := make([]T, n)
+	copy(output, l)
 	return output
 }

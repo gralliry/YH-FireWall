@@ -106,6 +106,10 @@ func (c *Connection) Unparse() *Config {
 		Direction:       c.direction,
 		RemoteIP:        c.remoteIP,
 		RemotePort:      c.remotePort,
-		EstablishedTime: c.establishedTime,
+		EstablishedTime: c.establishedTime.Unix(),
 	}
+}
+
+func (c *Connection) Id() string {
+	return c.id
 }

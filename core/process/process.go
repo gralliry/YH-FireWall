@@ -91,6 +91,7 @@ func Close(pid int32, fd uint32) error {
 	if err != nil {
 		return fmt.Errorf("gdb failed: %w, output: %s", err, out)
 	}
-	fmt.Println(string(out)) // 打印 gdb 执行结果，调试用
+	// todo 打印 gdb 执行结果，调试用
+	fmt.Println(string(out))
 	return nil
 }

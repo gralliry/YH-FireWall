@@ -3,7 +3,6 @@ package connection
 import (
 	"github.com/google/gopacket/layers"
 	"net"
-	"time"
 )
 
 type Config struct {
@@ -24,5 +23,5 @@ type Config struct {
 	RemotePort uint16 `json:"remotePort"`
 
 	// 建立时间
-	EstablishedTime time.Time `json:"establishedTime"`
+	EstablishedTime int64 `json:"establishedTime"`
 }

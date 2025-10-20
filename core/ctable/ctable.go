@@ -2,6 +2,7 @@ package ctable
 
 import (
 	"YH-FireWall/core/connection"
+	"YH-FireWall/core/pkg/funcall"
 	"errors"
 	"fmt"
 	"github.com/google/gopacket/layers"
@@ -81,11 +82,16 @@ func Push(
 func GetAll() []connection.Config {
 	mutex.RLock()
 	defer mutex.RUnlock()
-	connectionList := make([]connection.Config, 0, len(table))
-	for _, conn := range table {
-		connectionList = append(connectionList, *conn.Unparse())
-	}
-	return connectionList
+	return funcall.Convert(funcall.Set(funcall.Map2List(table,
+		func(_ string, conn *connection.Connection) *connection.Config {
+			return conn.Unparse()
+		}),
+		func(conn *connection.Config) string {
+			return conn.Id
+		}),
+		func(conn *connection.Config) connection.Config {
+			return *conn
+		})
 }
 
 func Disable(id string) error {
@@ -101,3 +107,5 @@ func Disable(id string) error {
 	conn.Close()
 	return nil
 }
+
+// todo 自动清理过期连接
