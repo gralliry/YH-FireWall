@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"YH-FireWall/core/ctable"
 	"YH-FireWall/core/rtable"
 	"context"
 	"errors"
@@ -78,6 +79,8 @@ func handler(a nfqueue.Attribute) int {
 		inDev    = a.InDev
 		outDev   = a.OutDev
 		protocol layers.IPProtocol
+		//
+		family uint8
 	)
 	// 使用 gopacket 解析 Payload
 	rawpacket := gopacket.NewPacket(*a.Payload, layers.LayerTypeIPv4, gopacket.Default)
@@ -85,9 +88,11 @@ func handler(a nfqueue.Attribute) int {
 	if ip4 := rawpacket.Layer(layers.LayerTypeIPv4); ip4 != nil {
 		ip := ip4.(*layers.IPv4)
 		srcIP, dstIP, protocol = ip.SrcIP, ip.DstIP, ip.Protocol
+		family = 2
 	} else if ip6 := rawpacket.Layer(layers.LayerTypeIPv6); ip6 != nil {
 		ip := ip6.(*layers.IPv6)
 		srcIP, dstIP, protocol = ip.SrcIP, ip.DstIP, ip.NextHeader
+		family = 10
 	} else {
 		_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
 		return 0
@@ -116,7 +121,12 @@ func handler(a nfqueue.Attribute) int {
 		_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
 		return 0
 	}
-	//pringLog(protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
+	// 这里推入相关参数，并创建连接
+	if !ctable.Push(family, protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev) {
+		_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+		return 0
+	}
+	// pringLog(protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
 	// 继续处理
 	_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfAccept)
 	return 0

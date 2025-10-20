@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"YH-FireWall/core/connection"
+	"YH-FireWall/core/process"
 	"YH-FireWall/core/rule"
 	"YH-FireWall/core/system"
 	"github.com/gofiber/fiber/v2"
@@ -16,8 +17,12 @@ type Handler interface {
 	EnableRule(id string, enable bool) bool
 	GetConfig() (string, error)
 	SetConfig(raw string) error
-	GetConnections() ([]connection.Connection, error)
-	CloseConnection(pid int32, fd uint32) error
+
+	GetConnections() []connection.Config
+	CloseConnection(id string) error
+
+	GetProcesses() ([]process.Process, error)
+	CloseProcess(pid int32, fd uint32) error
 	GetInterfaces() ([]system.Interface, error)
 }
 
@@ -94,15 +99,33 @@ func mount(api fiber.Router, handler Handler) {
 
 	// 获取连接
 	api.Get("/connection", func(c *fiber.Ctx) error {
-		conns, err := handler.GetConnections()
+		conns := handler.GetConnections()
+		return c.JSON(conns)
+	})
+
+	//
+	api.Post("/connection/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		if id == "" {
+			return c.Status(fiber.StatusBadRequest).SendString("id is required")
+		}
+		if err := handler.CloseConnection(id); err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	// 获取进程
+	api.Get("/process", func(c *fiber.Ctx) error {
+		conns, err := handler.GetProcesses()
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 		return c.JSON(conns)
 	})
 
-	// 关闭连接
-	api.Delete("/connection/:pid/:fd", func(c *fiber.Ctx) error {
+	// 关闭进程连接
+	api.Delete("/process/:pid/:fd", func(c *fiber.Ctx) error {
 		pid := c.Params("pid")
 		if pid == "" {
 			return c.Status(fiber.StatusBadRequest).SendString("pid is required")
@@ -121,7 +144,7 @@ func mount(api fiber.Router, handler Handler) {
 			return c.Status(fiber.StatusBadRequest).SendString("invalid fd")
 		}
 
-		if err = handler.CloseConnection(int32(pidInt32), uint32(fdUint32)); err != nil {
+		if err = handler.CloseProcess(int32(pidInt32), uint32(fdUint32)); err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 		return c.SendStatus(fiber.StatusOK)

@@ -2,6 +2,7 @@ package core
 
 import (
 	"YH-FireWall/core/config"
+	"YH-FireWall/core/ctable"
 	"YH-FireWall/core/handler"
 	"YH-FireWall/core/queue"
 	"YH-FireWall/core/rtable"
@@ -36,6 +37,10 @@ func Start() (err error) {
 	// 初始化管理器
 	if err = rtable.Load(cfg.RuleTable); err != nil {
 		return fmt.Errorf("failed to load rule table: %w", err)
+	}
+	// 初始化连接表
+	if err = ctable.Init(); err != nil {
+		return fmt.Errorf("failed to initialize connection table: %w", err)
 	}
 	// 初始化队列
 	if err = queue.Start(Context, cfg.QueueNo); err != nil {
@@ -85,6 +90,9 @@ func Close() error {
 	}
 	// 关闭队列
 	if err := queue.Close(); err != nil {
+		errs = append(errs, err)
+	}
+	if err := ctable.Close(); err != nil {
 		errs = append(errs, err)
 	}
 	if err := rtable.Close(); err != nil {

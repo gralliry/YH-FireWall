@@ -93,9 +93,10 @@ yfw rule disable RULE_ID
 	cmdRoot.AddCommand(cmdRule)
 	// rule list
 	cmdRuleList := &cobra.Command{
-		Use:   "list",
-		Short: "List all firewall rules or a specific rule",
-		Long:  "List all firewall rules if no argument provided, or display a specific rule by ID.",
+		Use:     "list",
+		Aliases: []string{"ls", "l"},
+		Short:   "List all firewall rules or a specific rule",
+		Long:    "List all firewall rules if no argument provided, or display a specific rule by ID.",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
 				rules := handler.GetRules()

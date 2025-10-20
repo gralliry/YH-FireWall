@@ -43,8 +43,7 @@ func Start(handler Handler, config Config) error {
 	// 设置 Token 验证中间件
 	if config.Token != "" {
 		app.Use(func(c *fiber.Ctx) error {
-			auth := c.Get("Authorization")
-			if auth != config.Token {
+			if c.Get("Authorization") != config.Token {
 				return c.SendStatus(fiber.StatusUnauthorized)
 			}
 			return c.Next()
