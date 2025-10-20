@@ -34,6 +34,9 @@ And `conntrack` installed.
 And `tcpkill` installed.
 
 ```bash
+apt install dsniff
+
+
 # Clone the repository
 git clone https://github.com/gralliry/YH-Firewall.git
 

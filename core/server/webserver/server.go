@@ -1,16 +1,14 @@
 package webserver
 
 import (
-	"errors"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"io"
+	"fmt"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"log"
-	"net/http"
 )
 
 var (
-	server    *echo.Echo
+	server    *fiber.App
 	isRunning bool
 )
 
@@ -23,47 +21,57 @@ type Config struct {
 }
 
 func Start(handler Handler, config Config) error {
-	// 初始化 echo 实例
-	e := echo.New()
-	// 隐藏Banner
-	e.HideBanner = true
-	// 日志级别设置为OFF，关闭echo官方日志输出
-	e.Logger.SetOutput(io.Discard)
+	// 初始化 Fiber 实例，并关闭默认日志
+	app := fiber.New(fiber.Config{
+		DisableStartupMessage: true, // 隐藏启动信息
+	})
+
 	// 设置静态文件
 	if config.StaticDir != "" {
-		e.Static("/", config.StaticDir)
+		app.Static("/", config.StaticDir)
 	}
+
 	// 设置跨域中间件
 	if config.EnableCORS {
-		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-			AllowOrigins: []string{"*"}, // 允许所有来源
-			AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE, echo.OPTIONS},
-			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+		app.Use(cors.New(cors.Config{
+			AllowOrigins: "*",
+			AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+			AllowHeaders: "Origin,Content-Type,Accept,Authorization",
 		}))
 	}
-	// 设置 BasicAuth 中间件
+
+	// 设置 Token 验证中间件
 	if config.Token != "" {
-		e.Use(middleware.KeyAuth(func(auth string, c echo.Context) (bool, error) {
-			return auth == config.Token, nil
-		}))
+		app.Use(func(c *fiber.Ctx) error {
+			auth := c.Get("Authorization")
+			if auth != config.Token {
+				return c.SendStatus(fiber.StatusUnauthorized)
+			}
+			return c.Next()
+		})
 	}
-	// 必须放前面，提高api匹配优先级
-	api := e.Group("/api")
+
+	// API 分组
+	api := app.Group("/api")
+
 	// 挂载接口
 	mount(api, handler)
+
 	// 启动服务器
-	go start(e, config.Address)
-	//
-	server = e
+	go start(app, config.Address)
+
+	server = app
 	isRunning = true
-	//
 	return nil
 }
 
 func Close() error {
+	if !isRunning {
+		return fmt.Errorf("webserver is not running")
+	}
 	isRunning = false
-	if err := server.Close(); err != nil {
-		return err
+	if err := server.Shutdown(); err != nil {
+		return fmt.Errorf("failed to close webserver: %w", err)
 	}
 	return nil
 }
@@ -72,8 +80,8 @@ func IsRunning() bool {
 	return isRunning
 }
 
-func start(e *echo.Echo, addr string) {
-	if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
+func start(app *fiber.App, addr string) {
+	if err := app.Listen(addr); err != nil {
 		log.Println(err)
 	}
 }

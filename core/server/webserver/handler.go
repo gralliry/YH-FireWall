@@ -4,9 +4,7 @@ import (
 	"YH-FireWall/core/connection"
 	"YH-FireWall/core/rule"
 	"YH-FireWall/core/system"
-	"github.com/labstack/echo/v4"
-	"io"
-	"net/http"
+	"github.com/gofiber/fiber/v2"
 	"strconv"
 )
 
@@ -23,110 +21,118 @@ type Handler interface {
 	GetInterfaces() ([]system.Interface, error)
 }
 
-//// 必须放前面，提高api匹配优先级
-//api := e.Group("/api")
+func mount(api fiber.Router, handler Handler) {
+	// ping
+	api.Get("/ping", func(c *fiber.Ctx) error {
+		return c.SendString("pong")
+	})
 
-func mount(api *echo.Group, handler Handler) {
-	//api.GET("/ping", ping)
-	api.GET("/ping", func(c echo.Context) error {
-		return c.String(http.StatusOK, "pong")
-	})
-	// 规则增删改
-	//api.GET("/rule", getRules)
-	api.GET("/rule", func(c echo.Context) error {
+	// 获取规则
+	api.Get("/rule", func(c *fiber.Ctx) error {
 		cfgs := handler.GetRules()
-		return c.JSON(http.StatusOK, cfgs)
+		return c.JSON(cfgs)
 	})
-	//api.POST("/rule", appendRule)
-	api.POST("/rule", func(c echo.Context) error {
+
+	// 添加规则
+	api.Post("/rule", func(c *fiber.Ctx) error {
 		option := new(rule.Option)
-		if err := c.Bind(option); err != nil {
-			return err
+		if err := c.BodyParser(option); err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
 		id, err := handler.AppendRule(option)
 		if err != nil {
-			return err
+			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
-		return c.String(http.StatusOK, id)
+		return c.SendString(id)
 	})
-	//api.PUT("/rule/:id", updateRule)
-	api.PUT("/rule/:id", func(c echo.Context) error {
-		id := c.Param("id")
+
+	// 更新规则
+	api.Put("/rule/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
 		if id == "" {
-			return c.String(http.StatusBadRequest, "id is required")
+			return c.Status(fiber.StatusBadRequest).SendString("id is required")
 		}
 		option := new(rule.Option)
-		if err := c.Bind(option); err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
+		if err := c.BodyParser(option); err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
 		if err := handler.UpdateRule(id, option); err != nil {
-			return err
+			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
-		return c.NoContent(http.StatusOK)
+		return c.SendStatus(fiber.StatusOK)
 	})
-	//api.DELETE("/rule/:id", deleteRule)
-	api.DELETE("/rule/:id", func(c echo.Context) error {
-		id := c.Param("id")
+
+	// 删除规则
+	api.Delete("/rule/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
 		if id == "" {
-			return c.String(http.StatusBadRequest, "id is required")
+			return c.Status(fiber.StatusBadRequest).SendString("id is required")
 		}
 		if err := handler.DeleteRule(id); err != nil {
-			return err
+			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
-		return c.NoContent(http.StatusOK)
+		return c.SendStatus(fiber.StatusOK)
 	})
-	// config get/set
-	api.GET("/config", func(c echo.Context) error {
+
+	// 获取配置
+	api.Get("/config", func(c *fiber.Ctx) error {
 		data, err := handler.GetConfig()
 		if err != nil {
-			return c.NoContent(http.StatusInternalServerError)
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
-		return c.String(http.StatusOK, data)
+		return c.SendString(data)
 	})
-	api.POST("/config", func(c echo.Context) error {
-		data, err := io.ReadAll(c.Request().Body)
-		if err != nil {
-			return err
+
+	// 设置配置
+	api.Post("/config", func(c *fiber.Ctx) error {
+		data := c.Body()
+		if err := handler.SetConfig(string(data)); err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
-		if err = handler.SetConfig(string(data)); err != nil {
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		return c.NoContent(http.StatusOK)
+		return c.SendStatus(fiber.StatusOK)
 	})
-	api.GET("/connection", func(c echo.Context) error {
+
+	// 获取连接
+	api.Get("/connection", func(c *fiber.Ctx) error {
 		conns, err := handler.GetConnections()
 		if err != nil {
-			return err
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
-		return c.JSON(http.StatusOK, conns)
+		return c.JSON(conns)
 	})
-	api.DELETE("/connection/:pid/:fd", func(c echo.Context) error {
-		pid := c.Param("pid")
+
+	// 关闭连接
+	api.Delete("/connection/:pid/:fd", func(c *fiber.Ctx) error {
+		pid := c.Params("pid")
 		if pid == "" {
-			return c.String(http.StatusBadRequest, "pid is required")
+			return c.Status(fiber.StatusBadRequest).SendString("pid is required")
 		}
 		pidInt32, err := strconv.ParseInt(pid, 10, 32)
 		if err != nil {
-			return c.String(http.StatusBadRequest, "invalid pid")
+			return c.Status(fiber.StatusBadRequest).SendString("invalid pid")
 		}
-		fd := c.Param("fd")
+
+		fd := c.Params("fd")
 		if fd == "" {
-			return c.String(http.StatusBadRequest, "fd is required")
+			return c.Status(fiber.StatusBadRequest).SendString("fd is required")
 		}
 		fdUint32, err := strconv.ParseUint(fd, 10, 32)
 		if err != nil {
-			return c.String(http.StatusBadRequest, "invalid fd")
+			return c.Status(fiber.StatusBadRequest).SendString("invalid fd")
 		}
+
 		if err = handler.CloseConnection(int32(pidInt32), uint32(fdUint32)); err != nil {
-			return err
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
-		return c.NoContent(http.StatusOK)
+		return c.SendStatus(fiber.StatusOK)
 	})
-	api.GET("/interface", func(c echo.Context) error {
+
+	// 获取网络接口
+	api.Get("/interface", func(c *fiber.Ctx) error {
 		interfaces, err := handler.GetInterfaces()
 		if err != nil {
-			return err
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
-		return c.JSON(http.StatusOK, interfaces)
+		return c.JSON(interfaces)
 	})
 }
