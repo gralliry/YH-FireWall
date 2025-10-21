@@ -122,11 +122,14 @@ func handler(a nfqueue.Attribute) int {
 		return 0
 	}
 	// 这里推入相关参数，并创建连接
-	if !ctable.Push(family, protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev) {
-		_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
-		return 0
+	if protocol == layers.IPProtocolUDP || protocol == layers.IPProtocolTCP {
+		if !ctable.Push(family, protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev) {
+			_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+			return 0
+		}
 	}
-	// pringLog(protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
+	// 打印日志
+	pringLog(protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
 	// 继续处理
 	_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfAccept)
 	return 0

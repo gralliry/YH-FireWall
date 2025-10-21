@@ -2,6 +2,7 @@ package connection
 
 import (
 	"YH-FireWall/core/pkg/sid"
+	"fmt"
 	"github.com/google/gopacket/layers"
 	"net"
 	"sync"
@@ -57,6 +58,18 @@ func New(
 		lastSeenTime:    time.Now(),
 		isClosed:        false,
 	}
+}
+
+func MakeKey(proto layers.IPProtocol, srcIP net.IP, srcPort uint16, dstIP net.IP, dstPort uint16) string {
+	return fmt.Sprintf("%s-%s-%d-%s-%d", proto, srcIP, srcPort, dstIP, dstPort)
+}
+
+func (c *Connection) LKey() string {
+	return MakeKey(c.protocol, c.localIP, c.localPort, c.remoteIP, c.remotePort)
+}
+
+func (c *Connection) RKey() string {
+	return MakeKey(c.protocol, c.remoteIP, c.remotePort, c.localIP, c.localPort)
 }
 
 func (c *Connection) Update() {

@@ -1,7 +1,7 @@
 package system
 
 import (
-	"YH-FireWall/core/pkg/funcall"
+	"YH-FireWall/core/pkg/fc"
 	"net"
 	"strings"
 )
@@ -20,23 +20,15 @@ func GetInterfaces() ([]Interface, error) {
 	if err != nil {
 		return nil, err
 	}
-	return funcall.Convert(
-		interfaces,
-		func(ifs net.Interface) Interface {
-			oaddrs, _ := ifs.Addrs()
-			return Interface{
-				Index: ifs.Index,
-				Name:  ifs.Name,
-				MAC:   ifs.HardwareAddr.String(),
-				MTU:   ifs.MTU,
-				Flags: strings.Split(ifs.Flags.String(), "|"),
-				Addrs: funcall.Convert(
-					oaddrs,
-					func(a net.Addr) string {
-						return a.String()
-					},
-				),
-			}
-		},
-	), nil
+	return fc.List2List(interfaces, func(ifs net.Interface) Interface {
+		oaddrs, _ := ifs.Addrs()
+		return Interface{
+			Index: ifs.Index,
+			Name:  ifs.Name,
+			MAC:   ifs.HardwareAddr.String(),
+			MTU:   ifs.MTU,
+			Flags: strings.Split(ifs.Flags.String(), "|"),
+			Addrs: fc.List2List(oaddrs, func(a net.Addr) string { return a.String() }),
+		}
+	}), nil
 }

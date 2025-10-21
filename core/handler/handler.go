@@ -57,7 +57,7 @@ func (h *Handler) GetConnections() []connection.Config {
 }
 
 func (h *Handler) CloseConnection(id string) error {
-	return ctable.Disable(id)
+	return ctable.Remove(id)
 }
 
 func (h *Handler) GetProcesses() ([]process.Process, error) {

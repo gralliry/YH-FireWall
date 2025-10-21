@@ -104,7 +104,7 @@ func mount(api fiber.Router, handler Handler) {
 	})
 
 	//
-	api.Post("/connection/:id", func(c *fiber.Ctx) error {
+	api.Delete("/connection/:id", func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).SendString("id is required")

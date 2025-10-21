@@ -39,7 +39,7 @@ func Start() (err error) {
 		return fmt.Errorf("failed to load rule table: %w", err)
 	}
 	// 初始化连接表
-	if err = ctable.Init(); err != nil {
+	if err = ctable.Start(Context); err != nil {
 		return fmt.Errorf("failed to initialize connection table: %w", err)
 	}
 	// 初始化队列
