@@ -80,7 +80,7 @@ func handler(a nfqueue.Attribute) int {
 		outDev   = a.OutDev
 		protocol layers.IPProtocol
 		//
-		family uint8
+		family uint32
 	)
 	// 使用 gopacket 解析 Payload
 	rawpacket := gopacket.NewPacket(*a.Payload, layers.LayerTypeIPv4, gopacket.Default)
@@ -122,8 +122,10 @@ func handler(a nfqueue.Attribute) int {
 		return 0
 	}
 	// 这里推入相关参数，并创建连接
-	if protocol == layers.IPProtocolUDP || protocol == layers.IPProtocolTCP {
+	if protocol == layers.IPProtocolTCP {
 		if !ctable.Push(family, protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev) {
+			// 伪装RST
+			// 已经伪装了包，这里就阻止
 			_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
 			return 0
 		}

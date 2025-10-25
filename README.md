@@ -18,10 +18,6 @@ packet filtering and management.
 ## Build or Install
 
 ```bash
-
-```
-
-```bash
 # go install github.com/mitchellh/gox@latest
 version='v1.0.0'
 # go tool dist list
@@ -31,7 +27,7 @@ gox -osarch="linux/386 linux/amd64 linux/arm linux/arm64 linux/loong64 linux/mip
 Make sure you have Go installed (`>=1.20`) and `iptables` available.
 
 And `conntrack` installed.
-And `tcpkill` installed.
+And `tcpkill` installed. sudo yum install dsniff -y
 
 ```bash
 apt install dsniff
@@ -81,18 +77,17 @@ yfw web status
 ```bash
 # List all rules
 yfw rule list
-[config.go](core%2Fconfig%2Fconfig.go)
 # Get a specific rule
 yfw rule list <rule_id>
 
 # Add a new rule
-yfw rule add '{"src_net":"0.0.0.0/0","tar_port":"80"}'
+yfw rule add '{"srcNet":"0.0.0.0/0","tarPort":"80"}'
 
 # Remove a rule
 yfw rule remove <rule_id>
 
 # Change a rule
-yfw rule change <rule_id> '{"src_net":"192.168.1.0/24"}'
+yfw rule change <rule_id> '{"srcNet":"192.168.1.0/24"}'
 
 # Enable/disable a rule
 yfw rule enable <rule_id>

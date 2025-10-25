@@ -246,7 +246,7 @@ func (r *Rule) Update(o Option) (err error) {
 }
 
 func (r *Rule) Id() string {
-	// Id 一定不会发生修改，无需加锁
+	// Index 一定不会发生修改，无需加锁
 	return r.id
 }
 

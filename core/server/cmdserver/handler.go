@@ -175,7 +175,7 @@ yfw rule del RULE_ID
 		Use:     "change",
 		Aliases: []string{"c", "modify", "update"},
 		Short:   "Modify an existing firewall rule",
-		Long:    "Update an existing firewall rule with new configuration by providing the rule ID and new JSON configuration.",
+		Long:    "UpdateByPush an existing firewall rule with new configuration by providing the rule ID and new JSON configuration.",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) != 2 {
 				cmd.PrintErrln("Usage: change {id} {config}")

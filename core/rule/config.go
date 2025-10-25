@@ -24,7 +24,7 @@ type Config struct {
 func (c *Config) String() string {
 	var sb strings.Builder
 	indent := "    "
-	sb.WriteString(fmt.Sprintf("Id: %s Group: %s Comment: %s\n", c.Id, c.Group, c.Comment))
+	sb.WriteString(fmt.Sprintf("Index: %s Group: %s Comment: %s\n", c.Id, c.Group, c.Comment))
 	sb.WriteString(fmt.Sprintf("%sSrcNet  : %s\n", indent, c.SrcNet))
 	sb.WriteString(fmt.Sprintf("%sSrcPort : %s\n", indent, c.SrcPort))
 	sb.WriteString(fmt.Sprintf("%sTarNet  : %s\n", indent, c.TarNet))

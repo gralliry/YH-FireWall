@@ -74,3 +74,31 @@ func Reduce[T1, T2 any](arr []T1, zero T2, f func(T2, T1) T2) T2 {
 	}
 	return result
 }
+
+func All[T any](arr []T, f func(T) bool) bool {
+	for _, v := range arr {
+		if !f(v) {
+			return false
+		}
+	}
+	return true
+}
+
+func Any[T any](arr []T, f func(T) bool) bool {
+	for _, v := range arr {
+		if f(v) {
+			return true
+		}
+	}
+	return false
+}
+
+func First[T any](arr []T, f func(T) bool) (T, bool) {
+	for _, v := range arr {
+		if f(v) {
+			return v, true
+		}
+	}
+	var zero T
+	return zero, false
+}

@@ -4,10 +4,9 @@ import (
 	"YH-FireWall/core/config"
 	"YH-FireWall/core/connection"
 	"YH-FireWall/core/ctable"
-	"YH-FireWall/core/process"
+	"YH-FireWall/core/iface"
 	"YH-FireWall/core/rtable"
 	"YH-FireWall/core/rule"
-	"YH-FireWall/core/system"
 	"context"
 )
 
@@ -60,16 +59,8 @@ func (h *Handler) CloseConnection(id string) error {
 	return ctable.Remove(id)
 }
 
-func (h *Handler) GetProcesses() ([]process.Process, error) {
-	return process.GetAll()
-}
-
-func (h *Handler) CloseProcess(pid int32, fd uint32) error {
-	return process.Close(pid, fd)
-}
-
-func (h *Handler) GetInterfaces() ([]system.Interface, error) {
-	return system.GetInterfaces()
+func (h *Handler) GetInterfaces() ([]iface.Config, error) {
+	return iface.GetAll()
 }
 
 func (h *Handler) Version() string {

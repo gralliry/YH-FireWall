@@ -2,11 +2,9 @@ package webserver
 
 import (
 	"YH-FireWall/core/connection"
-	"YH-FireWall/core/process"
+	"YH-FireWall/core/iface"
 	"YH-FireWall/core/rule"
-	"YH-FireWall/core/system"
 	"github.com/gofiber/fiber/v2"
-	"strconv"
 )
 
 type Handler interface {
@@ -21,9 +19,7 @@ type Handler interface {
 	GetConnections() []connection.Config
 	CloseConnection(id string) error
 
-	GetProcesses() ([]process.Process, error)
-	CloseProcess(pid int32, fd uint32) error
-	GetInterfaces() ([]system.Interface, error)
+	GetInterfaces() ([]iface.Config, error)
 }
 
 func mount(api fiber.Router, handler Handler) {
@@ -103,48 +99,13 @@ func mount(api fiber.Router, handler Handler) {
 		return c.JSON(conns)
 	})
 
-	//
+	// 关闭连接
 	api.Delete("/connection/:id", func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).SendString("id is required")
 		}
 		if err := handler.CloseConnection(id); err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-		}
-		return c.SendStatus(fiber.StatusOK)
-	})
-
-	// 获取进程
-	api.Get("/process", func(c *fiber.Ctx) error {
-		conns, err := handler.GetProcesses()
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-		}
-		return c.JSON(conns)
-	})
-
-	// 关闭进程连接
-	api.Delete("/process/:pid/:fd", func(c *fiber.Ctx) error {
-		pid := c.Params("pid")
-		if pid == "" {
-			return c.Status(fiber.StatusBadRequest).SendString("pid is required")
-		}
-		pidInt32, err := strconv.ParseInt(pid, 10, 32)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).SendString("invalid pid")
-		}
-
-		fd := c.Params("fd")
-		if fd == "" {
-			return c.Status(fiber.StatusBadRequest).SendString("fd is required")
-		}
-		fdUint32, err := strconv.ParseUint(fd, 10, 32)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).SendString("invalid fd")
-		}
-
-		if err = handler.CloseProcess(int32(pidInt32), uint32(fdUint32)); err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 		return c.SendStatus(fiber.StatusOK)
