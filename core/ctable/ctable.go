@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"sync"
@@ -69,14 +70,17 @@ func clean(ctx context.Context) {
 	for {
 		// 先执行清理逻辑（立即执行一次）
 		mutex.Lock()
+		count := 0
 		for id, conn := range namespcae {
 			if conn.Expired() {
 				delete(namespcae, id)
 				delete(table, conn.LKey())
 				delete(table, conn.RKey())
+				count += 1
 			}
 		}
 		mutex.Unlock()
+		log.Printf("clean %d expired connections", count)
 		select {
 		case <-ctx.Done():
 			return

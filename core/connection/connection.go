@@ -69,6 +69,7 @@ func NewByPush(
 		remotePort: remotePort,
 
 		interface_: interface_,
+		status:     "ESTABLISHED",
 
 		establishedTime: time.Now(),
 		lastSeenTime:    time.Now(),
