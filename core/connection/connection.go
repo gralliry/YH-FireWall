@@ -22,8 +22,7 @@ type Connection struct {
 	// 接口
 	interface_ string
 
-	//
-
+	// 进程信息
 	isProcessInfoEmpty bool
 	fd                 uint32
 	pid                int32

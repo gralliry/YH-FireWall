@@ -3,6 +3,7 @@ package webserver
 import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"log"
 )
@@ -13,11 +14,12 @@ var (
 )
 
 type Config struct {
-	Enable     bool   `json:"enable"`
-	Address    string `json:"address"`
-	Token      string `json:"auth_token"`
-	StaticDir  string `json:"static_dir"`
-	EnableCORS bool   `json:"enable_cors"`
+	Enable       bool   `json:"enable"`
+	Address      string `json:"address"`
+	AuthUsername string `json:"auth_username"`
+	AuthPassword string `json:"auth_password"`
+	StaticDir    string `json:"static_dir"`
+	EnableCORS   bool   `json:"enable_cors"`
 }
 
 func Start(handler Handler, config Config) error {
@@ -40,14 +42,12 @@ func Start(handler Handler, config Config) error {
 		}))
 	}
 
-	// 设置 Token 验证中间件
-	if config.Token != "" {
-		app.Use(func(c *fiber.Ctx) error {
-			if c.Get("Authorization") != config.Token {
-				return c.SendStatus(fiber.StatusUnauthorized)
-			}
-			return c.Next()
-		})
+	// 设置验证中间件
+	if config.AuthPassword != "" {
+		app.Use(basicauth.New(basicauth.Config{
+			Users: map[string]string{config.AuthUsername: config.AuthPassword},
+			Realm: "Firewall Web Login",
+		}))
 	}
 
 	// API 分组
