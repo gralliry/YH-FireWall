@@ -80,6 +80,7 @@ func clean(ctx context.Context) {
 			}
 		}
 		mutex.Unlock()
+		// 日志输出
 		log.Printf("clean %d expired connections", count)
 		select {
 		case <-ctx.Done():

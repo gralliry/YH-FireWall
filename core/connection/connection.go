@@ -43,7 +43,7 @@ type Connection struct {
 	status string
 
 	establishedTime time.Time
-	lastSeenTime    time.Time
+	lastActiveTime  time.Time
 	isClosed        bool
 
 	//
@@ -72,7 +72,7 @@ func NewByPush(
 		status:     "ESTABLISHED",
 
 		establishedTime: time.Now(),
-		lastSeenTime:    time.Now(),
+		lastActiveTime:  time.Now(),
 		isClosed:        false,
 	}
 }
@@ -91,7 +91,7 @@ func (c *Connection) UpdateByProcess(
 
 	c.status = status
 
-	c.lastSeenTime = time.Now()
+	c.lastActiveTime = time.Now()
 }
 
 func MakeKey(proto layers.IPProtocol, srcIP net.IP, srcPort uint16, dstIP net.IP, dstPort uint16) string {
@@ -101,7 +101,7 @@ func MakeKey(proto layers.IPProtocol, srcIP net.IP, srcPort uint16, dstIP net.IP
 func (c *Connection) UpdateByPush() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.lastSeenTime = time.Now()
+	c.lastActiveTime = time.Now()
 }
 
 //const killcmd = "src %s and src port %d and dst %s and dst port %d"
@@ -134,7 +134,7 @@ func (c *Connection) Expired() bool {
 }
 
 func (c *Connection) expired() bool {
-	return time.Now().Sub(c.lastSeenTime) > time.Minute
+	return time.Now().Sub(c.lastActiveTime) > time.Minute
 }
 func (c *Connection) Status() (isClosed bool, isExpired bool) {
 	c.mutex.RLock()
