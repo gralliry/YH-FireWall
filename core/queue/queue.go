@@ -10,7 +10,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/netlink"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"os/exec"
 	"time"

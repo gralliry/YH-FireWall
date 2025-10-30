@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/shlex"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
 )

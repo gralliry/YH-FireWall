@@ -27,7 +27,7 @@ cd YH-Firewall
 
 # Build the project
 # Must be executed under root user
-go build -o /usr/local/bin/yfw . && chmod +x /usr/local/bin/yfw && yfw
+go build -o /usr/local/bin/yfw ./cmd && chmod +x /usr/local/bin/yfw && yfw
 ```
 
 ## Usage

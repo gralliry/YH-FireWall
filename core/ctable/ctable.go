@@ -5,9 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
 	"sync"
+	"time"
 )
 
 var (
