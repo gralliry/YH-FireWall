@@ -3,7 +3,7 @@ package main
 import (
 	"YH-FireWall/core"
 	"context"
-	log "github.com/sirupsen/logrus"
+	"log"
 	"os/signal"
 	"syscall"
 )

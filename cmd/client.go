@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"log"
 	"net"
 	"os"
 )

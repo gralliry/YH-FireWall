@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/gopacket/layers"
-	log "github.com/sirupsen/logrus"
 	"io"
+	"log"
 	"net"
 	"os"
 	"path"
@@ -65,11 +65,11 @@ func Load(config Config) (err error) {
 	for _, rc := range rules {
 		// 匹配
 		if _, exists := ruleMap[rc.Id]; exists {
-			log.Errorf("rule %s exists", rc.Id)
+			log.Printf("rule %s exists", rc.Id)
 			continue
 		}
 		if rr, err = rule.Parse(&rc); err != nil {
-			log.Errorf("failed to parse rule %s: %v", rc.Id, err)
+			log.Printf("failed to parse rule %s: %v", rc.Id, err)
 			continue
 		}
 		// 如果都没有，就添加
