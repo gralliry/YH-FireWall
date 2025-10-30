@@ -15,24 +15,11 @@ packet filtering and management.
 
 ---
 
-## Build or Install
+## Install
+
+Make sure you have `iptables` available.
 
 ```bash
-# go install github.com/mitchellh/gox@latest
-version='v1.0.0'
-# go tool dist list
-gox -osarch="linux/386 linux/amd64 linux/arm linux/arm64 linux/loong64 linux/mips linux/mips64 linux/mips64le linux/mipsle linux/ppc64 linux/ppc64le linux/riscv64 linux/s390x" -output="build/yfw-{{.OS}}-{{.Arch}}-$version" ./cmd
-```
-
-Make sure you have Go installed (`>=1.20`) and `iptables` available.
-
-And `conntrack` installed.
-And `tcpkill` installed. sudo yum install dsniff -y
-
-```bash
-apt install dsniff
-
-
 # Clone the repository
 git clone https://github.com/gralliry/YH-Firewall.git
 
@@ -44,35 +31,6 @@ go build -o /usr/local/bin/yfw . && chmod +x /usr/local/bin/yfw && yfw
 ```
 
 ## Usage
-
-### Core
-Run the firewall service:
-
-```bash
-# Start the core service
-yfw start
-
-# Stop the service
-yfw stop
-
-# Check status
-yfw status
-```
-
-### Web Interface
-
-```bash
-# Start web interface: yfw web start <address> <username> <password>
-yfw web start 0.0.0.0:8080 admin admin123
-
-# Stop web interface
-yfw web stop
-
-# Check web interface status
-yfw web status
-```
-
-### Rule Management
 
 ```bash
 # List all rules
@@ -94,29 +52,16 @@ yfw rule enable <rule_id>
 yfw rule disable <rule_id>
 ```
 
-### Group Management
+## Compile
+
+Make sure you have Go installed (`>=1.24`) available.
 
 ```bash
-# Enable/disable a group
-yfw group enable <group_name>
-yfw group disable <group_name>
-```
+go install github.com/mitchellh/gox@latest
+version='v1.0.0'
 
-### Other
-
-```bash
-# Show all rules
-sudo iptables -L -n -v
-# 
-QUEUE_NUM=1
-# Append NFQUEUE to INPUT/OUTPUT/FORWARD
-sudo iptables -I INPUT   -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
-sudo iptables -I OUTPUT  -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
-sudo iptables -I FORWARD -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
-# Delete all rules with yfw comment
-sudo iptables -D INPUT   -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
-sudo iptables -D OUTPUT  -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
-sudo iptables -D FORWARD -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+# go tool dist list
+gox -osarch="linux/386 linux/amd64 linux/arm linux/arm64 linux/loong64 linux/mips linux/mips64 linux/mips64le linux/mipsle linux/ppc64 linux/ppc64le linux/riscv64 linux/s390x" -output="build/yfw-{{.OS}}-{{.Arch}}-$version" ./cmd
 ```
 
 ## License
@@ -132,9 +77,3 @@ Contributions are welcome! Please open an issue or submit a pull request for bug
 * Requires __root__ privileges to manipulate iptables rules.
 
 * Works best on Linux environments with iptables and libnetfilter_queue installed.
-
-## Other
-
-```bash
-sudo iptables -L -v -n
-```
