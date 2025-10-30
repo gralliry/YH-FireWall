@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"sync"
@@ -81,7 +80,7 @@ func clean(ctx context.Context) {
 		}
 		mutex.Unlock()
 		// 日志输出
-		log.Printf("clean %d expired connections", count)
+		//log.Printf("clean %d expired connections", count)
 		select {
 		case <-ctx.Done():
 			return

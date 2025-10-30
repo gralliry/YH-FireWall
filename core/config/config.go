@@ -24,15 +24,11 @@ var (
 )
 
 type Config struct {
-	LastUpdateTime string `json:"last_update_time"`
-
-	QueueNo uint16 `json:"queue_no"`
-
-	Web webserver.Config `json:"web"`
-
-	Cmd cmdserver.Config `json:"cmd"`
-
-	RuleTable rtable.Config `json:"rule_table"`
+	LastUpdateTime string           `json:"last_update_time"`
+	QueueNo        uint16           `json:"queue_no"`
+	Web            webserver.Config `json:"web"`
+	Cmd            cmdserver.Config `json:"cmd"`
+	RuleTable      rtable.Config    `json:"rule_table"`
 }
 
 func Default() *Config {
