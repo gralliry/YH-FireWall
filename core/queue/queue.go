@@ -78,9 +78,8 @@ func handler(a nfqueue.Attribute) int {
 		dstPort  uint16
 		inDev    = a.InDev
 		outDev   = a.OutDev
+		family   uint32
 		protocol layers.IPProtocol
-		//
-		family uint32
 	)
 	// 使用 gopacket 解析 Payload
 	rawpacket := gopacket.NewPacket(*a.Payload, layers.LayerTypeIPv4, gopacket.Default)
