@@ -68,6 +68,7 @@ func Load(config Config) (err error) {
 			log.Printf("rule %s exists", rc.Id)
 			continue
 		}
+		// 解析
 		if rr, err = rule.Parse(&rc); err != nil {
 			log.Printf("failed to parse rule %s: %v", rc.Id, err)
 			continue

@@ -10,7 +10,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/netlink"
-	log "github.com/sirupsen/logrus"
+	"log"
 	"net"
 	"os/exec"
 	"time"
@@ -122,7 +122,7 @@ func handler(a nfqueue.Attribute) int {
 		return 0
 	}
 	// 这里推入相关参数，并创建连接
-	if protocol == layers.IPProtocolTCP {
+	if protocol == layers.IPProtocolTCP || protocol == layers.IPProtocolUDP {
 		if !ctable.Push(family, protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev) {
 			// 伪装RST
 			// 已经伪装了包，这里就阻止
