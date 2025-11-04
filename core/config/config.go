@@ -40,7 +40,6 @@ func Default() *Config {
 			Address:      ":8080",
 			AuthUsername: "admin",
 			AuthPassword: "admin",
-			StaticDir:    "/etc/yfw/frontend",
 			EnableCORS:   true,
 		},
 		Cmd: cmdserver.Config{

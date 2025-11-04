@@ -1,11 +1,14 @@
 package webserver
 
 import (
+	"embed"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"log"
+	"net/http"
 )
 
 var (
@@ -18,20 +21,17 @@ type Config struct {
 	Address      string `json:"address"`
 	AuthUsername string `json:"auth_username"`
 	AuthPassword string `json:"auth_password"`
-	StaticDir    string `json:"static_dir"`
 	EnableCORS   bool   `json:"enable_cors"`
 }
+
+//go:embed static/*
+var static embed.FS
 
 func Start(handler Handler, config Config) error {
 	// 初始化 Fiber 实例，并关闭默认日志
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true, // 隐藏启动信息
 	})
-
-	// 设置静态文件
-	if config.StaticDir != "" {
-		app.Static("/", config.StaticDir)
-	}
 
 	// 设置跨域中间件
 	if config.EnableCORS {
@@ -52,9 +52,17 @@ func Start(handler Handler, config Config) error {
 
 	// API 分组
 	api := app.Group("/api")
-
 	// 挂载接口
 	mount(api, handler)
+
+	// 方法1: 使用 filesystem 中间件
+	app.Use("/", filesystem.New(filesystem.Config{
+		Root:       http.FS(static),
+		PathPrefix: "static",
+		Browse:     true, // 允许目录浏览
+		Index:      "index.html",
+		//NotFoundFile: "index.html",
+	}))
 
 	// 启动服务器
 	go start(app, config.Address)

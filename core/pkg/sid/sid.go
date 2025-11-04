@@ -18,20 +18,3 @@ func New(n int) string {
 
 	return sb.String()
 }
-
-func NewWithNoRepeat(n int) string {
-	runes := []rune(alphabet) // 支持 Unicode
-	length := len(runes)
-
-	if n > length {
-		n = length // 防止 n 太大
-	}
-
-	// Fisher–Yates 洗牌
-	for i := length - 1; i > length-1-n; i-- {
-		j := rand.Intn(i + 1)
-		runes[i], runes[j] = runes[j], runes[i]
-	}
-
-	return string(runes[length-n:])
-}
