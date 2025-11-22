@@ -64,6 +64,26 @@ version='v1.0.0'
 gox -osarch="linux/386 linux/amd64 linux/arm linux/arm64 linux/loong64 linux/mips linux/mips64 linux/mips64le linux/mipsle linux/ppc64 linux/ppc64le linux/riscv64 linux/s390x" -output="build/yfw-{{.OS}}-{{.Arch}}-$version" ./cmd
 ```
 
+## Config
+In```/etc/yfw/config.yaml```, for example:
+```yaml
+queue_no: 0
+
+web:
+  enable: true
+  address: 0.0.0.0:8080
+  auth_username: admin
+  auth_password: admin
+  enable_cors: true
+
+cmd:
+  enable: true
+  socket_path: /tmp/yfw.sock
+
+rule_table:
+  path: /etc/yfw/rule.json
+```
+
 ## License
 
 MIT License © Gralliry
@@ -77,3 +97,9 @@ Contributions are welcome! Please open an issue or submit a pull request for bug
 * Requires __root__ privileges to manipulate iptables rules.
 
 * Works best on Linux environments with iptables and libnetfilter_queue installed.
+
+## Author's words
+It is just a homework about computer network application in my college, so it is just a toy project. Don't be too serious.
+And ... DO NOT USE IT IN PRODUCTION ENVIRONMENT!!!
+I need to submit my homework to my teacher, (s)he will check it, so I must use chinese comments.
+If someone thinks it is a good project or star it, i will try to translate it into English and keep it updated.
