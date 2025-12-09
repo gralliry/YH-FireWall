@@ -20,6 +20,8 @@ type Handler interface {
 	CloseConnection(id string) error
 
 	GetInterfaces() ([]iface.Config, error)
+
+	GetProtocols() []string
 }
 
 func mount(api fiber.Router, handler Handler) {
@@ -118,5 +120,11 @@ func mount(api fiber.Router, handler Handler) {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 		return c.JSON(interfaces)
+	})
+
+	// 获取协议
+	api.Get("/protocol", func(c *fiber.Ctx) error {
+		protocols := handler.GetProtocols()
+		return c.JSON(protocols)
 	})
 }

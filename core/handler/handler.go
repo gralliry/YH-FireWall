@@ -63,6 +63,10 @@ func (h *Handler) GetInterfaces() ([]iface.Config, error) {
 	return iface.GetAll()
 }
 
+func (h *Handler) GetProtocols() []string {
+	return rule.GetAllProtocolNames()
+}
+
 func (h *Handler) Version() string {
 	return config.Version
 }

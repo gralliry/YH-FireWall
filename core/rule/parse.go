@@ -157,6 +157,14 @@ var protocolName2Protocol = map[string]layers.IPProtocol{
 	strings.ToLower(layers.IPProtocolMPLSInIP.String()):        layers.IPProtocolMPLSInIP,
 }
 
+func GetAllProtocolNames() []string {
+	protocols := make([]string, 0, len(protocolName2Protocol))
+	for k := range protocolName2Protocol {
+		protocols = append(protocols, k)
+	}
+	return protocols
+}
+
 func parseProtocol(raw string) (map[layers.IPProtocol]struct{}, error) {
 	parts := split(raw)
 	if len(parts) == 0 {
