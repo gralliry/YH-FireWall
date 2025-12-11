@@ -61,7 +61,6 @@ func Start(handler Handler, config Config) error {
 		PathPrefix: "static",
 		Browse:     true, // 允许目录浏览
 		Index:      "index.html",
-		//NotFoundFile: "index.html",
 	}))
 
 	// 启动服务器
