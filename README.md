@@ -8,7 +8,7 @@ packet filtering and management.
 ## Features
 
 - Lightweight and high-performance, written in pure Go
-- Works with `iptables` to intercept packets via NFQUEUE
+- Works with `iptables` to intercept packets via NFQUEUE (Make sure you have `iptables` available)
 - Support for custom rules, groups, and priority-based filtering
 - Easy to enable/disable rules and groups dynamically
 - Web-based control panel (optional)
@@ -17,25 +17,10 @@ packet filtering and management.
 
 ## Install
 
-### Core
-
-Make sure you have `iptables` available.
-
 ```bash
-# Clone the repository
-git clone https://github.com/gralliry/YH-Firewall.git
-
-cd YH-Firewall
-
-# Build the project
-# Must be executed under root user
-go build -o /usr/local/bin/yfw-core ./cmd/core && chmod +x /usr/local/bin/yfw-core && yfw-core
-```
-
-### Client
-
-```bash
-go build -o /usr/local/bin/yfw-client ./cmd/client && chmod +x /usr/local/bin/yfw-client && yfw-client
+tar -xzvf yfw-XXX-XXX-XXX.tar.gz -C /tmp/yfw
+cd /tmp/yfw
+bash install.sh
 ```
 
 ## Usage
@@ -60,20 +45,10 @@ yfw rule enable <rule_id>
 yfw rule disable <rule_id>
 ```
 
-## Compile
-
-Make sure you have Go installed (`>=1.24`) available.
-
-```bash
-go install github.com/mitchellh/gox@latest
-version='v1.0.0'
-
-# go tool dist list
-gox -osarch="linux/386 linux/amd64 linux/arm linux/arm64 linux/loong64 linux/mips linux/mips64 linux/mips64le linux/mipsle linux/ppc64 linux/ppc64le linux/riscv64 linux/s390x" -output="build/yfw-{{.OS}}-{{.Arch}}-$version" ./cmd
-```
-
 ## Config
+
 In```/etc/yfw/config.yaml```, for example:
+
 ```yaml
 queue_no: 0
 
