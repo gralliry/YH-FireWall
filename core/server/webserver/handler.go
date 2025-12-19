@@ -4,7 +4,12 @@ import (
 	"YH-FireWall/core/connection"
 	"YH-FireWall/core/iface"
 	"YH-FireWall/core/rule"
+	"embed"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/basicauth"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"net/http"
 )
 
 type Handler interface {
@@ -13,7 +18,7 @@ type Handler interface {
 	DeleteRule(id string) error
 	GetRules() []rule.Config
 	EnableRule(id string, enable bool) bool
-	GetConfig() (string, error)
+	GetConfig() string
 	SetConfig(raw string) error
 
 	GetConnections() []connection.Config
@@ -24,7 +29,33 @@ type Handler interface {
 	GetProtocols() []string
 }
 
-func mount(api fiber.Router, handler Handler) {
+//go:embed static/*
+var staticFS embed.FS
+
+func newServer(cfg Config, handler Handler) *fiber.App {
+	// 初始化 Fiber 实例，并关闭默认日志
+	app := fiber.New(fiber.Config{
+		DisableStartupMessage: true, // 隐藏启动信息
+	})
+	// 设置跨域中间件
+	if cfg.EnableCORS {
+		app.Use(cors.New(cors.Config{
+			AllowOrigins: "*",
+			AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+			AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+		}))
+	}
+	// 设置验证中间件
+	if cfg.AuthPassword != "" {
+		app.Use(basicauth.New(basicauth.Config{
+			Users: map[string]string{cfg.AuthUsername: cfg.AuthPassword},
+			Realm: "Firewall Web Login",
+		}))
+	}
+
+	// API 分组
+	api := app.Group("/api")
+
 	// ping
 	api.Get("/ping", func(c *fiber.Ctx) error {
 		return c.SendString("pong")
@@ -79,10 +110,7 @@ func mount(api fiber.Router, handler Handler) {
 
 	// 获取配置
 	api.Get("/config", func(c *fiber.Ctx) error {
-		data, err := handler.GetConfig()
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-		}
+		data := handler.GetConfig()
 		return c.SendString(data)
 	})
 
@@ -127,4 +155,14 @@ func mount(api fiber.Router, handler Handler) {
 		protocols := handler.GetProtocols()
 		return c.JSON(protocols)
 	})
+
+	// 方法1: 使用 filesystem 中间件
+	app.All("/*", filesystem.New(filesystem.Config{
+		Root:       http.FS(staticFS),
+		PathPrefix: "static",
+		Browse:     false, // 允许目录浏览
+		Index:      "index.html",
+	}))
+
+	return app
 }

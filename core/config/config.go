@@ -9,18 +9,15 @@ import (
 	"gopkg.in/yaml.v3"
 	"os"
 	"path"
+	"sync"
 	"syscall"
 	"time"
 )
 
-const Version = "1.0.0"
-
 var (
-	DefaultPath = "/etc/yfw/config.yaml"
-)
-
-var (
-	file *os.File
+	file    *os.File
+	mutex   sync.RWMutex
+	content []byte
 )
 
 type Config struct {
@@ -53,13 +50,13 @@ func Default() *Config {
 	}
 }
 
-func Init() (err error) {
+func Init(configPath string) (err error) {
 	// 确保目录存在
-	if err = os.MkdirAll(path.Dir(DefaultPath), 0755); err != nil {
+	if err = os.MkdirAll(path.Dir(configPath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 	// 打开文件
-	file, err = os.OpenFile(DefaultPath, os.O_RDWR|os.O_CREATE, 0644)
+	file, err = os.OpenFile(configPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
@@ -68,39 +65,46 @@ func Init() (err error) {
 		_ = file.Close()
 		return fmt.Errorf("failed to acquire exclusive lock: %w", err)
 	}
-	return nil
-}
-
-func Read() (content []byte, err error) {
 	// 重置文件指针
 	if _, err = file.Seek(0, 0); err != nil {
-		return nil, fmt.Errorf("failed to seek file: %w", err)
+		return fmt.Errorf("failed to seek file: %w", err)
 	}
 	info, err := file.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file stat: %w", err)
+		return fmt.Errorf("failed to get file stat: %w", err)
 	}
-	buf := make([]byte, info.Size())
-	if _, err = file.Read(buf); err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+	content = make([]byte, info.Size())
+	if _, err = file.Read(content); err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
 	}
-	return buf, nil
+	return nil
+}
+
+func Read() []byte {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	// 拷贝内容
+	result := make([]byte, len(content))
+	copy(result, content)
+	return result
+
 }
 
 func Load() (cfg *Config, err error) {
-	content, err := Read()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config: %w", err)
-	}
+	buf := Read()
 	cfg = Default()
-	if err = yaml.Unmarshal(content, &cfg); err != nil {
+	if err = yaml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 	return cfg, nil
 }
 
-func Store(buf []byte) error {
+func Save(buf []byte) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+	//
 	var cfg Config
+	// 验证
 	if err := yaml.Unmarshal(buf, &cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}

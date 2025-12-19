@@ -17,6 +17,8 @@ packet filtering and management.
 
 ## Install
 
+### Core
+
 Make sure you have `iptables` available.
 
 ```bash
@@ -27,7 +29,13 @@ cd YH-Firewall
 
 # Build the project
 # Must be executed under root user
-go build -o /usr/local/bin/yfw ./cmd && chmod +x /usr/local/bin/yfw && yfw
+go build -o /usr/local/bin/yfw-core ./cmd/core && chmod +x /usr/local/bin/yfw-core && yfw-core
+```
+
+### Client
+
+```bash
+go build -o /usr/local/bin/yfw-client ./cmd/client && chmod +x /usr/local/bin/yfw-client && yfw-client
 ```
 
 ## Usage
@@ -82,6 +90,23 @@ cmd:
 
 rule_table:
   path: /etc/yfw/rule.json
+```
+
+## Command
+
+```shell
+# Show all rules
+sudo iptables -L -n -v
+#
+QUEUE_NUM=1
+# Append NFQUEUE to INPUT/OUTPUT/FORWARD
+sudo iptables -I INPUT   -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+sudo iptables -I OUTPUT  -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+sudo iptables -I FORWARD -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+# Delete all rules with yfw comment
+sudo iptables -D INPUT   -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+sudo iptables -D OUTPUT  -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
+sudo iptables -D FORWARD -j NFQUEUE --queue-num "$QUEUE_NUM" -m comment --comment "yfw"
 ```
 
 ## License

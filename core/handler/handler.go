@@ -3,6 +3,7 @@ package handler
 import (
 	"YH-FireWall/core/config"
 	"YH-FireWall/core/connection"
+	_const "YH-FireWall/core/const"
 	"YH-FireWall/core/ctable"
 	"YH-FireWall/core/iface"
 	"YH-FireWall/core/rtable"
@@ -11,8 +12,7 @@ import (
 )
 
 type Handler struct {
-	Context context.Context
-	Cancel  context.CancelFunc
+	Cancel context.CancelFunc
 }
 
 func (h *Handler) Start() error {
@@ -42,13 +42,12 @@ func (h *Handler) GetRules() []rule.Config {
 func (h *Handler) EnableRule(id string, enable bool) bool {
 	return rtable.Enable(id, enable)
 }
-func (h *Handler) GetConfig() (string, error) {
-	buf, err := config.Read()
-	return string(buf), err
+func (h *Handler) GetConfig() string {
+	return string(config.Read())
 }
 
 func (h *Handler) SetConfig(raw string) error {
-	return config.Store([]byte(raw))
+	return config.Save([]byte(raw))
 }
 
 func (h *Handler) GetConnections() []connection.Config {
@@ -68,5 +67,5 @@ func (h *Handler) GetProtocols() []string {
 }
 
 func (h *Handler) Version() string {
-	return config.Version
+	return _const.Version
 }

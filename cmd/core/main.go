@@ -3,12 +3,15 @@ package main
 import (
 	"YH-FireWall/core"
 	"context"
+	"flag"
 	"log"
 	"os/signal"
 	"syscall"
 )
 
-func startCore() {
+func main() {
+	configPath := flag.String("c", "/etc/yfw/config.yaml", "Path to the configuration file")
+	flag.Parse()
 	// syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP)
@@ -17,7 +20,7 @@ func startCore() {
 	core.Context = ctx
 	core.Cancel = cancel
 	// 启动核心服务
-	if err := core.Start(); err != nil {
+	if err := core.Start(*configPath); err != nil {
 		log.Fatalf("Core service failed to start: %v", err)
 	} else {
 		log.Println("Core service started successfully")

@@ -21,14 +21,15 @@ var (
 	hder *handler.Handler
 )
 
-func Start() (err error) {
+func Start(configPath string) (err error) {
 	// 检测当前用户是否为 root 用户
 	if os.Geteuid() != 0 {
 		return errors.New("current user is not root")
 	}
 	// 读取配置
-	if err = config.Init(); err != nil {
-		return fmt.Errorf("failed to initialize config: %w", err)
+	if err = config.Init(configPath); err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -38,9 +39,10 @@ func Start() (err error) {
 	if err = rtable.Load(cfg.RuleTable); err != nil {
 		return fmt.Errorf("failed to load rule table: %w", err)
 	}
+	//
 	// 初始化连接表
 	if err = ctable.Start(Context); err != nil {
-		return fmt.Errorf("failed to initialize connection table: %w", err)
+		return fmt.Errorf("failed to load rule table: %w", err)
 	}
 	// 初始化队列
 	if err = queue.Start(Context, cfg.QueueNo); err != nil {
@@ -48,8 +50,7 @@ func Start() (err error) {
 	}
 	// 初始化接口
 	hder = &handler.Handler{
-		Context: Context,
-		Cancel:  Cancel,
+		Cancel: Cancel,
 	}
 	// 启动服务
 	if err = hder.Start(); err != nil {

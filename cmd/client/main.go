@@ -2,15 +2,20 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
 )
 
-func startClient() {
+func main() {
+	// 解析命令行参数
+	socketPath := flag.String("s", "/tmp/yfw.sock", "Path to the socket file")
+	flag.Parse()
+
 	// 运行客户端
-	conn, err := net.Dial("unix", "/tmp/yfw.sock")
+	conn, err := net.Dial("unix", *socketPath)
 	if err != nil {
 		log.Println("Core service is not running.")
 		log.Println("Please start it with: yfw")

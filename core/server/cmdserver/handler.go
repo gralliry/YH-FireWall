@@ -18,10 +18,8 @@ type Handler interface {
 	GetRules() []rule.Config
 	EnableRule(id string, enable bool) bool
 
-	GetConfig() (string, error)
+	GetConfig() string
 }
-
-var handler Handler
 
 func newCommand(handler Handler) *cobra.Command {
 	cmdRoot := &cobra.Command{
@@ -249,11 +247,7 @@ yfw rule disable RULE_ID
 		Short:   "Get current configuration",
 		Long:    "Display the current configuration of the YH Firewall service.",
 		Run: func(cmd *cobra.Command, args []string) {
-			if data, err := handler.GetConfig(); err != nil {
-				cmd.PrintErrln(err)
-			} else {
-				cmd.Println(data)
-			}
+			cmd.Println(handler.GetConfig())
 		},
 		Example: `
 yfw config

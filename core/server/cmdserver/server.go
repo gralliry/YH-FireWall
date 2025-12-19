@@ -29,10 +29,8 @@ func Start(h Handler, config Config) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to listen on socket: %w", err)
 	}
-	// 设置处理函数
-	handler = h
 	// 启动监听
-	go acceptConn()
+	go acceptConn(h)
 	//
 	isRunning = true
 	return nil
@@ -49,18 +47,18 @@ func IsRunning() bool {
 	return isRunning
 }
 
-func acceptConn() {
+func acceptConn(handler Handler) {
 	for {
 		conn, err := listener.Accept()
 		if err == nil {
-			go handleConn(conn)
+			go handleConn(conn, handler)
 		} else if errors.Is(err, net.ErrClosed) {
 			break
 		}
 	}
 }
 
-func handleConn(conn net.Conn) {
+func handleConn(conn net.Conn, handler Handler) {
 	defer func() { _ = conn.Close() }()
 
 	// 解析并执行命令
