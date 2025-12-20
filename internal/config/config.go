@@ -1,9 +1,9 @@
 package config
 
 import (
-	"YH-FireWall/core/rtable"
-	"YH-FireWall/core/server/cmdserver"
-	"YH-FireWall/core/server/webserver"
+	"YH-FireWall/internal/rtable"
+	"YH-FireWall/internal/server/cmdserver"
+	"YH-FireWall/internal/server/webserver"
 	"errors"
 	"fmt"
 	"gopkg.in/yaml.v3"

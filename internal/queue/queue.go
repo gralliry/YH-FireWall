@@ -1,8 +1,8 @@
 package queue
 
 import (
-	"YH-FireWall/core/ctable"
-	"YH-FireWall/core/rtable"
+	"YH-FireWall/internal/ctable"
+	"YH-FireWall/internal/rtable"
 	"context"
 	"errors"
 	"fmt"

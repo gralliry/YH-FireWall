@@ -1,7 +1,7 @@
 package iface
 
 import (
-	"YH-FireWall/core/pkg/fc"
+	"YH-FireWall/internal/pkg/fc"
 	"net"
 	"strings"
 	"sync"

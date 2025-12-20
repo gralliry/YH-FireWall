@@ -1,7 +1,7 @@
 package rule
 
 import (
-	"YH-FireWall/core/pkg/sid"
+	"YH-FireWall/internal/pkg/sid"
 )
 
 type Option struct {

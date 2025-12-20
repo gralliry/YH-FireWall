@@ -1,9 +1,9 @@
 package webserver
 
 import (
-	"YH-FireWall/core/connection"
-	"YH-FireWall/core/iface"
-	"YH-FireWall/core/rule"
+	"YH-FireWall/internal/connection"
+	"YH-FireWall/internal/iface"
+	"YH-FireWall/internal/rule"
 	"embed"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"

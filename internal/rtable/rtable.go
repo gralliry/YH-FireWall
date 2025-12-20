@@ -1,7 +1,7 @@
 package rtable
 
 import (
-	"YH-FireWall/core/rule"
+	"YH-FireWall/internal/rule"
 	"encoding/json"
 	"errors"
 	"fmt"

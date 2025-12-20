@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"YH-FireWall/core/config"
-	"YH-FireWall/core/connection"
-	_const "YH-FireWall/core/const"
-	"YH-FireWall/core/ctable"
-	"YH-FireWall/core/iface"
-	"YH-FireWall/core/rtable"
-	"YH-FireWall/core/rule"
+	"YH-FireWall/internal/config"
+	"YH-FireWall/internal/connection"
+	_const "YH-FireWall/internal/const"
+	"YH-FireWall/internal/ctable"
+	"YH-FireWall/internal/iface"
+	"YH-FireWall/internal/rtable"
+	"YH-FireWall/internal/rule"
 	"context"
 )
 

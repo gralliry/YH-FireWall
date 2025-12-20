@@ -1,8 +1,8 @@
 package ctable
 
 import (
-	"YH-FireWall/core/connection"
-	"YH-FireWall/core/iface"
+	"YH-FireWall/internal/connection"
+	"YH-FireWall/internal/iface"
 	"github.com/google/gopacket/layers"
 	nnet "github.com/shirou/gopsutil/v4/net"
 	nprocess "github.com/shirou/gopsutil/v4/process"

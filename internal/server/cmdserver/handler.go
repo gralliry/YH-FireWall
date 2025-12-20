@@ -1,7 +1,7 @@
 package cmdserver
 
 import (
-	"YH-FireWall/core/rule"
+	"YH-FireWall/internal/rule"
 	"encoding/json"
 	"github.com/spf13/cobra"
 )

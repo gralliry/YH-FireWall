@@ -1,13 +1,13 @@
-package core
+package internal
 
 import (
-	"YH-FireWall/core/config"
-	"YH-FireWall/core/ctable"
-	"YH-FireWall/core/handler"
-	"YH-FireWall/core/queue"
-	"YH-FireWall/core/rtable"
-	"YH-FireWall/core/server/cmdserver"
-	"YH-FireWall/core/server/webserver"
+	"YH-FireWall/internal/config"
+	"YH-FireWall/internal/ctable"
+	"YH-FireWall/internal/handler"
+	"YH-FireWall/internal/queue"
+	"YH-FireWall/internal/rtable"
+	"YH-FireWall/internal/server/cmdserver"
+	"YH-FireWall/internal/server/webserver"
 	"context"
 	"errors"
 	"fmt"

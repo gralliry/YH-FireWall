@@ -1,7 +1,7 @@
 package ctable
 
 import (
-	"YH-FireWall/core/connection"
+	"YH-FireWall/internal/connection"
 	"context"
 	"errors"
 	"fmt"

@@ -38,8 +38,8 @@ for OSARCH in "${ARCH_LIST[@]}"; do
     OUTPUT_DIR="$BUILD_DIR/$GOOS-$GOARCH"
     mkdir -p "$OUTPUT_DIR"
 
-    # 构建 core（纯 Go，禁用 cgo）
-    CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o "$OUTPUT_DIR/yfw-core" ./cmd/core
+    # 构建 internal（纯 Go，禁用 cgo）
+    CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o "$OUTPUT_DIR/yfw-core" ./cmd/internal
 
     # 构建 client（纯 Go，禁用 cgo）
     CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o "$OUTPUT_DIR/yfw-client" ./cmd/client

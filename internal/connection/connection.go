@@ -1,7 +1,7 @@
 package connection
 
 import (
-	"YH-FireWall/core/pkg/sid"
+	"YH-FireWall/internal/pkg/sid"
 	"errors"
 	"fmt"
 	"github.com/google/gopacket/layers"
