@@ -6,12 +6,13 @@ import (
 	"YH-FireWall/internal/server/webserver"
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path"
 	"sync"
 	"syscall"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -92,6 +93,7 @@ func Read() []byte {
 
 func Load() (cfg *Config, err error) {
 	buf := Read()
+	// 默认配置
 	cfg = Default()
 	if err = yaml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)

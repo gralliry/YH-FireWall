@@ -56,30 +56,32 @@ if [ "$VERSION" = "latest" ]; then
 fi
 echo "Installing version: $VERSION"
 
-# ---------- download ----------
-TAR_FILE="yfw-linux-$ARCH-$VERSION.tar.gz"
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$TAR_FILE"
-echo "Downloading $DOWNLOAD_URL ..."
-curl -fsSL -o "$TMP_DIR/$TAR_FILE" "$DOWNLOAD_URL"
+BASE_URL="https://github.com/$REPO/releases/download/$VERSION"
 
-# ---------- verify sha256 ----------
-SHA_URL="$DOWNLOAD_URL.sha256"
-echo "Verifying sha256..."
-curl -fsSL -o "$TMP_DIR/$TAR_FILE.sha256" "$SHA_URL"
-EXPECTED="$(cut -d' ' -f1 "$TMP_DIR/$TAR_FILE.sha256")"
-ACTUAL="$(sha256sum "$TMP_DIR/$TAR_FILE" | cut -d' ' -f1)"
-if [ "$EXPECTED" != "$ACTUAL" ]; then
-    echo "Error: Checksum mismatch."
-    echo "Expected: $EXPECTED"
-    echo "Got:      $ACTUAL"
-    exit 1
-fi
-echo "Checksum OK."
+# ---------- download ----------
+download_and_verify() {
+    local name="$1"
+    local file="yfw-$name-linux-$ARCH"
+    echo "Downloading $file ..."
+    curl -fsSL -o "$TMP_DIR/$file" "$BASE_URL/$file"
+    curl -fsSL -o "$TMP_DIR/$file.sha256" "$BASE_URL/$file.sha256"
+    EXPECTED="$(cut -d' ' -f1 "$TMP_DIR/$file.sha256")"
+    ACTUAL="$(sha256sum "$TMP_DIR/$file" | cut -d' ' -f1)"
+    if [ "$EXPECTED" != "$ACTUAL" ]; then
+        echo "Error: Checksum mismatch for $file."
+        echo "Expected: $EXPECTED"
+        echo "Got:      $ACTUAL"
+        exit 1
+    fi
+    echo "Checksum OK: $file"
+}
+
+download_and_verify "core"
+download_and_verify "client"
 
 # ---------- install ----------
-tar -xzf "$TMP_DIR/$TAR_FILE" -C "$TMP_DIR"
-install -m 755 "$TMP_DIR/yfw-core"  /usr/local/bin/yfw-core
-install -m 755 "$TMP_DIR/yfw-client" /usr/local/bin/yfw
+install -m 755 "$TMP_DIR/yfw-core-linux-$ARCH"   /usr/local/bin/yfw-core
+install -m 755 "$TMP_DIR/yfw-client-linux-$ARCH" /usr/local/bin/yfw
 
 # ---------- systemd ----------
 SERVICE_FILE="/etc/systemd/system/yfw.service"

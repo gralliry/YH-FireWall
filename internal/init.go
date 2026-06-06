@@ -29,7 +29,6 @@ func Start(configPath string) (err error) {
 	// 读取配置
 	if err = config.Init(configPath); err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
-
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -39,7 +38,6 @@ func Start(configPath string) (err error) {
 	if err = rtable.Load(cfg.RuleTable); err != nil {
 		return fmt.Errorf("failed to load rule table: %w", err)
 	}
-	//
 	// 初始化连接表
 	if err = ctable.Start(Context); err != nil {
 		return fmt.Errorf("failed to load rule table: %w", err)
