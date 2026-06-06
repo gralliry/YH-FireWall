@@ -1,21 +1,90 @@
 #!/bin/bash
+set -e
 
-# 判断是否 root 用户
+REPO="gralliry/YH-FireWall"
+VERSION="${1:-latest}"
+TMP_DIR="$(mktemp -d)"
+
+cleanup() { rm -rf "$TMP_DIR"; }
+trap cleanup EXIT
+
+# ---------- root check ----------
 if [ "$EUID" -ne 0 ]; then
-    echo "Error: This script must be run as root. Please run with sudo."
+    echo "Error: This script must be run as root."
+    echo "Usage: curl -fsSL https://raw.githubusercontent.com/$REPO/master/scripts/install.sh | sudo bash"
     exit 1
 fi
 
-# 安装程序
-install -m 755 yfw-core /usr/local/bin/yfw-core
-install -m 755 yfw-client /usr/local/bin/yfw
+# ---------- arch detection ----------
+detect_arch() {
+    local machine
+    machine="$(uname -m)"
+    case "$machine" in
+        x86_64)    echo "amd64" ;;
+        i386|i686) echo "386" ;;
+        armv6l|armv7l) echo "arm" ;;
+        aarch64)   echo "arm64" ;;
+        loongarch64) echo "loong64" ;;
+        mips)      echo "mips" ;;
+        mips64)    echo "mips64" ;;
+        mips64el)  echo "mips64le" ;;
+        mipsel)    echo "mipsle" ;;
+        ppc64)     echo "ppc64" ;;
+        ppc64le)   echo "ppc64le" ;;
+        riscv64)   echo "riscv64" ;;
+        s390x)     echo "s390x" ;;
+        *)         echo "" ;;
+    esac
+}
 
-# 创建 systemd service 文件
+ARCH="$(detect_arch)"
+if [ -z "$ARCH" ]; then
+    echo "Error: Unsupported architecture: $(uname -m)"
+    exit 1
+fi
+echo "Detected architecture: $ARCH"
+
+# ---------- resolve version ----------
+if [ "$VERSION" = "latest" ]; then
+    echo "Resolving latest version..."
+    VERSION="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
+        | grep '"tag_name":' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')"
+    if [ -z "$VERSION" ]; then
+        echo "Error: Failed to resolve latest version."
+        exit 1
+    fi
+fi
+echo "Installing version: $VERSION"
+
+# ---------- download ----------
+TAR_FILE="yfw-linux-$ARCH-$VERSION.tar.gz"
+DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$TAR_FILE"
+echo "Downloading $DOWNLOAD_URL ..."
+curl -fsSL -o "$TMP_DIR/$TAR_FILE" "$DOWNLOAD_URL"
+
+# ---------- verify sha256 ----------
+SHA_URL="$DOWNLOAD_URL.sha256"
+echo "Verifying sha256..."
+curl -fsSL -o "$TMP_DIR/$TAR_FILE.sha256" "$SHA_URL"
+EXPECTED="$(cut -d' ' -f1 "$TMP_DIR/$TAR_FILE.sha256")"
+ACTUAL="$(sha256sum "$TMP_DIR/$TAR_FILE" | cut -d' ' -f1)"
+if [ "$EXPECTED" != "$ACTUAL" ]; then
+    echo "Error: Checksum mismatch."
+    echo "Expected: $EXPECTED"
+    echo "Got:      $ACTUAL"
+    exit 1
+fi
+echo "Checksum OK."
+
+# ---------- install ----------
+tar -xzf "$TMP_DIR/$TAR_FILE" -C "$TMP_DIR"
+install -m 755 "$TMP_DIR/yfw-core"  /usr/local/bin/yfw-core
+install -m 755 "$TMP_DIR/yfw-client" /usr/local/bin/yfw
+
+# ---------- systemd ----------
 SERVICE_FILE="/etc/systemd/system/yfw.service"
-
-echo "Creating systemd service file at $SERVICE_FILE..."
-
-sudo tee "$SERVICE_FILE" > /dev/null <<EOF
+echo "Creating systemd service: $SERVICE_FILE"
+tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
 Description=YH Firewall Service
 After=network.target
@@ -32,20 +101,14 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
 
-# 重新加载 systemd 配置
-echo "Reloading systemd daemon..."
-sudo systemctl daemon-reload
+systemctl daemon-reload
+systemctl enable yfw
+systemctl start yfw
 
-# 启动服务
-echo "Starting $SERVICE_NAME service..."
-sudo systemctl start yfw
-
-# 设置开机自启
-echo "Enabling $SERVICE_NAME to start on boot..."
-sudo systemctl enable yfw
-
-# 显示状态
-echo "Service status:"
-sudo systemctl status yfw --no-pager
-
-echo "Installation complete!"
+echo ""
+echo "============================================"
+echo "  YH-FireWall $VERSION installed successfully."
+echo "  arch: $ARCH"
+echo "  service: systemctl status yfw"
+echo "  client:  yfw help"
+echo "============================================"
