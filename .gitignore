@@ -6,13 +6,9 @@
 
 **/*_test.go
 
-# 忽略 前端 文件夹下的所有内容
-frontend/
-
-build/
-target/
-
 # 构建产物
+build/
+build.sh
+
 yfw
 yfw.exe
-dist/

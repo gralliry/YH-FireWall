@@ -26,13 +26,20 @@
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/install.sh | sudo bash
 ```
 
 Or pin a specific version, or change the config file path:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/scripts/install.sh | sudo bash -s v1.0.0 /custom/path/config.yaml
+# Latest version, custom config path
+curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/install.sh | sudo bash -s -- -c /custom/config.yaml
+
+# Specific version, default config path
+curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/install.sh | sudo bash -s -- -v v1.0.0
+
+# Both
+curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/install.sh | sudo bash -s -- -v v1.0.0 -c /custom/config.yaml
 ```
 
 The installer auto-detects your architecture, downloads the latest release, verifies the checksum, installs the binary to `/usr/local/bin/yfw`, and sets up a systemd service.
@@ -112,8 +119,3 @@ journalctl -u yfw -f     # follow logs
 ## License
 
 [MIT](LICENSE) © Gralliry
-
----
-
-> [!WARNING]  
-> This is a college course project and **not production-ready**. Use at your own risk.

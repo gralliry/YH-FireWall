@@ -2,17 +2,35 @@
 set -e
 
 REPO="gralliry/YH-FireWall"
-VERSION="${1:-latest}"
-CONFIG_PATH="${2:-/etc/yfw/config.yaml}"
-TMP_DIR="$(mktemp -d)"
+VERSION="latest"
+CONFIG_PATH="/etc/yfw/config.yaml"
 
+usage() {
+    echo "Usage: curl -fsSL https://raw.githubusercontent.com/$REPO/master/install.sh | sudo bash"
+    echo "       curl -fsSL ... | sudo bash -s -- -v v1.0.0 -c /path/to/config.yaml"
+    echo ""
+    echo "Options:"
+    echo "  -v  Version to install (default: latest)"
+    echo "  -c  Config file path  (default: /etc/yfw/config.yaml)"
+    exit 1
+}
+
+while getopts "v:c:h" opt; do
+    case "$opt" in
+        v) VERSION="$OPTARG" ;;
+        c) CONFIG_PATH="$OPTARG" ;;
+        h) usage ;;
+        *) usage ;;
+    esac
+done
+
+TMP_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT
 
 # ---------- root check ----------
 if [ "$EUID" -ne 0 ]; then
     echo "Error: This script must be run as root."
-    echo "Usage: curl -fsSL https://raw.githubusercontent.com/$REPO/master/scripts/install.sh | sudo bash"
     exit 1
 fi
 
@@ -105,7 +123,7 @@ echo ""
 echo "============================================"
 echo "  YH-FireWall $VERSION installed successfully."
 echo "  arch: $ARCH"
-echo "  service: systemctl status yfw"
 echo "  config:  $CONFIG_PATH"
+echo "  service: systemctl status yfw"
 echo "  client:  yfw help"
 echo "============================================"
