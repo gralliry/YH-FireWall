@@ -81,6 +81,7 @@ func (c *Connection) UpdateByProcess(
 ) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	c.isProcessInfoEmpty = false
 	c.fd = fd
 	c.pid = pid
 	c.exe = exe

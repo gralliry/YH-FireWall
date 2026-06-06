@@ -28,7 +28,7 @@ func Push(
 			// 如果被关闭 且 已过期
 			delete(table, lkey)
 			delete(table, rkey)
-			delete(namespcae, conn.Id())
+			delete(namespace, conn.Id())
 			return true
 		case isClosed && !isExpired:
 			// 表示该连接任然未过期
@@ -69,7 +69,7 @@ func Push(
 	// 写入表
 	table[lkey] = conn
 	table[rkey] = conn
-	namespcae[conn.Id()] = conn
+	namespace[conn.Id()] = conn
 	//
 	return true
 }
@@ -158,7 +158,7 @@ func pushByProcess() {
 			// 写入表
 			table[lkey] = connect
 			table[rkey] = connect
-			namespcae[connect.Id()] = connect
+			namespace[connect.Id()] = connect
 		}
 	}
 }

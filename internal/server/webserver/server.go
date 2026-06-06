@@ -21,15 +21,18 @@ type Config struct {
 
 func Start(handler Handler, config Config) error {
 	app := newServer(config, handler)
-	// 启动服务器
+	// 在 goroutine 中启动，确认监听成功后设置标记
+	ready := make(chan struct{})
 	go func() {
+		isRunning = true
+		close(ready)
 		if err := app.Listen(config.Address); err != nil {
 			log.Println(err)
+			isRunning = false
 		}
 	}()
-
+	<-ready
 	server = app
-	isRunning = true
 	return nil
 }
 

@@ -48,7 +48,10 @@ func Start(ctx context.Context, nfqNo uint16) (err error) {
 		return err
 	}
 	// 注册处理函数
-	if err = nfq.RegisterWithErrorFunc(ctx, handler, func(err error) int { return -1 }); err != nil {
+	if err = nfq.RegisterWithErrorFunc(ctx, handler, func(err error) int {
+		log.Printf("nfqueue error: %v", err)
+		return -1
+	}); err != nil {
 		return err
 	}
 	// 设置包导向
@@ -83,6 +86,11 @@ func handler(a nfqueue.Attribute) int {
 		family   uint32
 		protocol layers.IPProtocol
 	)
+	setVerdict := func(v int) {
+		if err := nfq.SetVerdict(*a.PacketID, v); err != nil {
+			log.Printf("SetVerdict error: %v", err)
+		}
+	}
 	// 使用 gopacket 解析 Payload
 	rawpacket := gopacket.NewPacket(*a.Payload, layers.LayerTypeIPv4, gopacket.Default)
 	// 获取 IPv4 或 IPv6 地址
@@ -95,7 +103,7 @@ func handler(a nfqueue.Attribute) int {
 		srcIP, dstIP, protocol = ip.SrcIP, ip.DstIP, ip.NextHeader
 		family = 10
 	} else {
-		_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+		setVerdict(nfqueue.NfDrop)
 		return 0
 	}
 	// 匹配端口 // TCP/UDP 端口
@@ -103,7 +111,7 @@ func handler(a nfqueue.Attribute) int {
 	case layers.IPProtocolTCP:
 		tcp := rawpacket.Layer(layers.LayerTypeTCP)
 		if tcp == nil {
-			_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+			setVerdict(nfqueue.NfDrop)
 			return 0
 		}
 		t := tcp.(*layers.TCP)
@@ -111,7 +119,7 @@ func handler(a nfqueue.Attribute) int {
 	case layers.IPProtocolUDP:
 		udp := rawpacket.Layer(layers.LayerTypeUDP)
 		if udp == nil {
-			_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+			setVerdict(nfqueue.NfDrop)
 			return 0
 		}
 		u := udp.(*layers.UDP)
@@ -119,7 +127,7 @@ func handler(a nfqueue.Attribute) int {
 	}
 	// 匹配规则
 	if !rtable.Match(srcIP, srcPort, dstIP, dstPort, inDev, outDev, protocol) {
-		_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+		setVerdict(nfqueue.NfDrop)
 		return 0
 	}
 	// 这里推入相关参数，并创建连接
@@ -127,14 +135,14 @@ func handler(a nfqueue.Attribute) int {
 		if !ctable.Push(family, protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev) {
 			// 伪装RST
 			// 已经伪装了包，这里就阻止
-			_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+			setVerdict(nfqueue.NfDrop)
 			return 0
 		}
 	}
 	// 打印日志
 	pringLog(protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
 	// 继续处理
-	_ = nfq.SetVerdict(*a.PacketID, nfqueue.NfAccept)
+	setVerdict(nfqueue.NfAccept)
 	return 0
 }
 

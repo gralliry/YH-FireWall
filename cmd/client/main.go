@@ -21,6 +21,7 @@ func main() {
 		log.Println("Please start it with: yfw")
 		os.Exit(1)
 	}
+	defer conn.Close()
 
 	reader := bufio.NewReader(os.Stdin)
 	server := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))

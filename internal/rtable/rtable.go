@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/gopacket/layers"
+	"golang.org/x/sys/unix"
 	"io"
 	"log"
 	"net"
@@ -13,7 +14,6 @@ import (
 	"path"
 	"sort"
 	"sync"
-	"syscall"
 )
 
 var (
@@ -46,7 +46,7 @@ func Load(config Config) (err error) {
 		return fmt.Errorf("failed to open file %s: %w", config.Path, err)
 	}
 	// 尝试独占锁（非阻塞）
-	if err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err = unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		_ = file.Close()
 		return fmt.Errorf("failed to lock file %s: %w", config.Path, err)
 	}
@@ -103,7 +103,7 @@ func Close() error {
 		return fmt.Errorf("failed to sync file: %w", err)
 	}
 	var errs []error
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_UN); err != nil {
+	if err := unix.Flock(int(file.Fd()), unix.LOCK_UN); err != nil {
 		errs = append(errs, err)
 	}
 	if err := file.Close(); err != nil {
@@ -185,6 +185,7 @@ func Match(srcIP net.IP, srcPort uint16, dstIP net.IP, dstPort uint16, inDev *ui
 		sort.SliceStable(ruleList, func(i, j int) bool {
 			return ruleList[i].Priority() < ruleList[j].Priority()
 		})
+		ruleIsListDirty = false
 	}
 	// 匹配
 	for _, r := range ruleList {

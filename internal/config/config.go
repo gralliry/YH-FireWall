@@ -9,9 +9,9 @@ import (
 	"os"
 	"path"
 	"sync"
-	"syscall"
 	"time"
 
+	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v3"
 )
 
@@ -62,7 +62,7 @@ func Init(configPath string) (err error) {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
 	// 尝试独占锁（非阻塞）
-	if err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err = unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		_ = file.Close()
 		return fmt.Errorf("failed to acquire exclusive lock: %w", err)
 	}
@@ -93,8 +93,10 @@ func Read() []byte {
 
 func Load() (cfg *Config, err error) {
 	buf := Read()
-	// 默认配置
 	cfg = Default()
+	if len(buf) == 0 {
+		return cfg, nil
+	}
 	if err = yaml.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
@@ -127,7 +129,7 @@ func Save(buf []byte) error {
 
 func Close() error {
 	var errs []error
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_UN); err != nil {
+	if err := unix.Flock(int(file.Fd()), unix.LOCK_UN); err != nil {
 		errs = append(errs, fmt.Errorf("failed to unlock file: %w", err))
 	}
 	if err := file.Close(); err != nil {

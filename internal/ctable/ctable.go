@@ -11,13 +11,13 @@ import (
 
 var (
 	table     map[string]*connection.Connection
-	namespcae map[string]*connection.Connection
+	namespace map[string]*connection.Connection
 	mutex     sync.RWMutex
 )
 
 func Start(ctx context.Context) error {
 	table = make(map[string]*connection.Connection)
-	namespcae = make(map[string]*connection.Connection)
+	namespace = make(map[string]*connection.Connection)
 	go clean(ctx)
 	return nil
 }
@@ -27,8 +27,8 @@ func Close() error {
 }
 
 func GetAll() []connection.Config {
-	mutex.RLock()
-	defer mutex.RUnlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	// push by process
 	pushByProcess()
 	// Step 1: 提取所有连接（values） // Distinct 跳过重复的连接
@@ -48,9 +48,9 @@ func GetAll() []connection.Config {
 }
 
 func Remove(id string) error {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	conn, exists := namespcae[id]
+	mutex.Lock()
+	defer mutex.Unlock()
+	conn, exists := namespace[id]
 	if !exists {
 		return errors.New("connection not found")
 	}
@@ -69,9 +69,9 @@ func clean(ctx context.Context) {
 		// 先执行清理逻辑（立即执行一次）
 		mutex.Lock()
 		count := 0
-		for id, conn := range namespcae {
+		for id, conn := range namespace {
 			if conn.Expired() {
-				delete(namespcae, id)
+				delete(namespace, id)
 				delete(table, conn.LKey())
 				delete(table, conn.RKey())
 				count += 1

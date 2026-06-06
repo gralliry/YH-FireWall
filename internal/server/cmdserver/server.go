@@ -54,6 +54,11 @@ func acceptConn(handler Handler) {
 			go handleConn(conn, handler)
 		} else if errors.Is(err, net.ErrClosed) {
 			break
+		} else {
+			log.Printf("cmdserver accept error: %v", err)
+			// 避免 Accept 持续失败导致忙等
+			// 使用简单的 sleep 退避
+			continue
 		}
 	}
 }
@@ -80,6 +85,10 @@ func handleConn(conn net.Conn, handler Handler) {
 		// 解析命令
 		args, err := shlex.Split(command)
 		if err != nil {
+			errBuf.WriteString(err.Error())
+			_, _ = client.Write(errBuf.Bytes())
+			_ = client.WriteByte(0)
+			_ = client.Flush()
 			return
 		}
 		// todo 参数读取展示

@@ -21,11 +21,11 @@ var (
 	mutex      sync.RWMutex
 )
 
-func Get(reflush bool) ([]Interface, error) {
+func Get(refresh bool) ([]Interface, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	// 读取缓存
-	if !reflush && interfaces != nil {
+	if !refresh && interfaces != nil {
 		return interfaces, nil
 	}
 	// 获取网络接口
@@ -75,7 +75,7 @@ func FindNameByIp(ip net.IP) string {
 	defer mutex.RUnlock()
 	for _, itf := range interfaces {
 		for _, addr := range itf.Addrs {
-			if addr.(*net.IPNet).Contains(ip) {
+			if ipnet, ok := addr.(*net.IPNet); ok && ipnet.Contains(ip) {
 				return itf.Name
 			}
 		}
