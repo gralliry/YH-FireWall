@@ -11,3 +11,8 @@ frontend/
 
 build/
 target/
+
+# 构建产物
+yfw
+yfw.exe
+dist/

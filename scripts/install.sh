@@ -3,6 +3,7 @@ set -e
 
 REPO="gralliry/YH-FireWall"
 VERSION="${1:-latest}"
+CONFIG_PATH="${2:-/etc/yfw/config.yaml}"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() { rm -rf "$TMP_DIR"; }
@@ -57,31 +58,24 @@ fi
 echo "Installing version: $VERSION"
 
 BASE_URL="https://github.com/$REPO/releases/download/$VERSION"
+FILE="yfw-linux-$ARCH"
 
 # ---------- download ----------
-download_and_verify() {
-    local name="$1"
-    local file="yfw-$name-linux-$ARCH"
-    echo "Downloading $file ..."
-    curl -fsSL -o "$TMP_DIR/$file" "$BASE_URL/$file"
-    curl -fsSL -o "$TMP_DIR/$file.sha256" "$BASE_URL/$file.sha256"
-    EXPECTED="$(cut -d' ' -f1 "$TMP_DIR/$file.sha256")"
-    ACTUAL="$(sha256sum "$TMP_DIR/$file" | cut -d' ' -f1)"
-    if [ "$EXPECTED" != "$ACTUAL" ]; then
-        echo "Error: Checksum mismatch for $file."
-        echo "Expected: $EXPECTED"
-        echo "Got:      $ACTUAL"
-        exit 1
-    fi
-    echo "Checksum OK: $file"
-}
-
-download_and_verify "core"
-download_and_verify "client"
+echo "Downloading $FILE ..."
+curl -fsSL -o "$TMP_DIR/$FILE" "$BASE_URL/$FILE"
+curl -fsSL -o "$TMP_DIR/$FILE.sha256" "$BASE_URL/$FILE.sha256"
+EXPECTED="$(cut -d' ' -f1 "$TMP_DIR/$FILE.sha256")"
+ACTUAL="$(sha256sum "$TMP_DIR/$FILE" | cut -d' ' -f1)"
+if [ "$EXPECTED" != "$ACTUAL" ]; then
+    echo "Error: Checksum mismatch."
+    echo "Expected: $EXPECTED"
+    echo "Got:      $ACTUAL"
+    exit 1
+fi
+echo "Checksum OK."
 
 # ---------- install ----------
-install -m 755 "$TMP_DIR/yfw-core-linux-$ARCH"   /usr/local/bin/yfw-core
-install -m 755 "$TMP_DIR/yfw-client-linux-$ARCH" /usr/local/bin/yfw
+install -m 755 "$TMP_DIR/$FILE" /usr/local/bin/yfw
 
 # ---------- systemd ----------
 SERVICE_FILE="/etc/systemd/system/yfw.service"
@@ -93,7 +87,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/yfw-core
+ExecStart=/usr/local/bin/yfw core -c $CONFIG_PATH
 Restart=always
 User=root
 StandardOutput=journal
@@ -112,5 +106,6 @@ echo "============================================"
 echo "  YH-FireWall $VERSION installed successfully."
 echo "  arch: $ARCH"
 echo "  service: systemctl status yfw"
+echo "  config:  $CONFIG_PATH"
 echo "  client:  yfw help"
 echo "============================================"

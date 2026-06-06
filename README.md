@@ -29,13 +29,17 @@
 curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/scripts/install.sh | sudo bash
 ```
 
-Or pin a specific version:
+Or pin a specific version, or change the config file path:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/scripts/install.sh | sudo bash -s v1.0.0
+curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/scripts/install.sh | sudo bash -s v1.0.0 /custom/path/config.yaml
 ```
 
-The installer auto-detects your architecture, downloads the latest release, verifies the checksum, installs binaries to `/usr/local/bin`, and sets up a systemd service.
+The installer auto-detects your architecture, downloads the latest release, verifies the checksum, installs the binary to `/usr/local/bin/yfw`, and sets up a systemd service.
+
+The single binary acts as both daemon and client:
+- `yfw core` — start the firewall daemon
+- `yfw <command>` — manage the running daemon
 
 ### Requirements
 

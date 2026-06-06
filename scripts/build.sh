@@ -24,11 +24,9 @@ for OSARCH in "${ARCH_LIST[@]}"; do
     IFS="/" read -r GOOS GOARCH <<< "$OSARCH"
     echo "Building for $GOOS/$GOARCH..."
 
-    CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o "$BUILD_DIR/yfw-core-$GOOS-$GOARCH"   ./cmd/core
-    CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o "$BUILD_DIR/yfw-client-$GOOS-$GOARCH" ./cmd/client
+    CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o "$BUILD_DIR/yfw-$GOOS-$GOARCH" ./cmd
 
-    sha256sum "$BUILD_DIR/yfw-core-$GOOS-$GOARCH"   > "$BUILD_DIR/yfw-core-$GOOS-$GOARCH.sha256"
-    sha256sum "$BUILD_DIR/yfw-client-$GOOS-$GOARCH" > "$BUILD_DIR/yfw-client-$GOOS-$GOARCH.sha256"
+    sha256sum "$BUILD_DIR/yfw-$GOOS-$GOARCH" > "$BUILD_DIR/yfw-$GOOS-$GOARCH.sha256"
 done
 
 echo "All builds completed."
