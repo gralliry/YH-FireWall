@@ -58,11 +58,8 @@ func LookupByName(name string) (int, bool) {
 	return index, ok
 }
 
-func Index2ItfName(index *int) (string, bool) {
-	if index == nil {
-		return "", false
-	}
-	name, exist := index2name[*index]
+func Index2ItfName(index int) (string, bool) {
+	name, exist := index2name[index]
 	return name, exist
 }
 

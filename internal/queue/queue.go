@@ -12,10 +12,11 @@ import (
 )
 
 var (
-	nfq *nfqueue.Nfqueue
+	ctx    context.Context
+	cancel context.CancelFunc
+	config Config
+	nfq    *nfqueue.Nfqueue
 )
-
-// sudo iptables -L -n -v
 
 const cmdSet = `
 sudo iptables -C INPUT   -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I INPUT   -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
@@ -29,31 +30,13 @@ sudo iptables -L OUTPUT  --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}'
 sudo iptables -L FORWARD --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}' | xargs -r sudo iptables -D FORWARD
 `
 
-type Queue struct {
-	// 上下文管理
-	ctx    context.Context
-	cancel context.CancelFunc
-	// 配置管理
-	config  Config
-	handler Handler
-	// 队列
-	nfq *nfqueue.Nfqueue
-}
+func Start(cfg Config) error {
+	ctx, cancel = context.WithCancel(context.Background())
+	config = cfg
 
-func New(config *Config, handler Handler) *Queue {
-	ctx, cancel := context.WithCancel(context.Background())
-	return &Queue{
-		ctx:     ctx,
-		cancel:  cancel,
-		config:  *config,
-		handler: handler,
-	}
-}
-
-func (q *Queue) Start() error {
-	// 打开队列
-	nfq, err := nfqueue.Open(&nfqueue.Config{
-		NfQueue:      q.config.No,
+	var err error
+	nfq, err = nfqueue.Open(&nfqueue.Config{
+		NfQueue:      config.No,
 		MaxPacketLen: 2048,
 		MaxQueueLen:  2048,
 		Copymode:     nfqueue.NfQnlCopyPacket,
@@ -62,33 +45,32 @@ func (q *Queue) Start() error {
 	if err != nil {
 		return err
 	}
-	// Avoid receiving ENOBUFS errors.
 	if err := nfq.SetOption(netlink.NoENOBUFS, true); err != nil {
 		return err
 	}
-	// 注册处理函数
-	if err := nfq.RegisterWithErrorFunc(q.ctx, handleFunc, errorFunc); err != nil {
+	if err := nfq.RegisterWithErrorFunc(ctx, handleFunc, errorFunc); err != nil {
 		return err
 	}
-	// 设置包导向
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, q.config.No))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, config.No))
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	// 写入注册器
-	q.nfq = nfq
 	return nil
 }
 
 func Close() error {
 	var errs []error
-	// 使用 bash 执行多行命令
 	cmd := exec.Command("bash", "-c", cmdUnset)
 	if err := cmd.Run(); err != nil {
 		errs = append(errs, err)
 	}
-	if err := nfq.Close(); err != nil {
-		errs = append(errs, err)
+	if nfq != nil {
+		if err := nfq.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if cancel != nil {
+		cancel()
 	}
 	return errors.Join(errs...)
 }

@@ -37,16 +37,16 @@ func Start(ctx context.Context, configPath string) (err error) {
 	if err = rtable.Load(*cfg.Rule); err != nil {
 		return fmt.Errorf("failed to load rule table: %w", err)
 	}
+	// 初始化接口
+	hder = &Handler{}
 	// 初始化连接表
-	if err = ctable.Start(Context); err != nil {
+	if err = ctable.Start(); err != nil {
 		return fmt.Errorf("failed to load rule table: %w", err)
 	}
 	// 初始化队列
-	if err = queue.Start(Context, cfg.Queue); err != nil {
+	if err = queue.Start(*cfg.Queue); err != nil {
 		return fmt.Errorf("failed to start queue: %w", err)
 	}
-	// 初始化接口
-	hder = &Handler{}
 	// 设置cmd服务器
 	if err = cmdserver.Start(hder, cfg.Cmd); err != nil {
 		return fmt.Errorf("failed to start cmdserver: %w", err)

@@ -2,19 +2,14 @@ package ctable
 
 import (
 	"YH-FireWall/internal/model/flow"
-	"YH-FireWall/internal/model/process"
 	"YH-FireWall/internal/pkg/sid"
 	"time"
-
-	_process "github.com/shirou/gopsutil/v4/process"
 )
 
 type Connection struct {
 	// 连接id
 	id string
 
-	// 进程信息
-	process *process.Process
 	// 连接流信息
 	flow *flow.Flow
 	// 状态信息
@@ -27,18 +22,12 @@ func New(flow *flow.Flow) *Connection {
 	return &Connection{
 		id: sid.New(8),
 
-		process: &process.Process{},
-
 		flow: flow,
 
 		establishedTime: time.Now(),
 		lastActiveTime:  time.Now(),
 		isClosed:        false,
 	}
-}
-
-func (c *Connection) SetProcess(pc *_process.Process) {
-	c.process = process.New(pc)
 }
 
 func (c *Connection) Active() {
@@ -68,7 +57,7 @@ func (c *Connection) Unparse() *Info {
 	return &Info{
 		Id: c.id,
 		// 连接信息
-		Family:     c.flow.Family,
+		Family:     uint32(c.flow.Family),
 		Protocol:   c.flow.Protocol,
 		LocalIP:    c.flow.SrcIP,
 		LocalPort:  c.flow.SrcPort,
@@ -79,14 +68,6 @@ func (c *Connection) Unparse() *Info {
 		InInterface:  c.flow.InDevName(),
 		OutInterface: c.flow.OutDevName(),
 		Direction:    c.flow.Direction(),
-
-		// 进程信息
-		Fd:   c.process.Fd,
-		Pid:  c.process.Pid,
-		Exe:  c.process.Exe,
-		Name: c.process.Name,
-		Cmd:  c.process.Cmd,
-		User: c.process.User,
 
 		// 状态
 		EstablishedTime: c.establishedTime.Unix(),

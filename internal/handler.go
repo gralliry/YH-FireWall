@@ -56,7 +56,7 @@ func (h *Handler) GetInterfaces() []itable.Info {
 
 // 协议常量
 func (h *Handler) GetProtocols() []string {
-	return rule.GetAllProtocolNames()
+	return rule.GetProtocolNames()
 }
 
 // 版本

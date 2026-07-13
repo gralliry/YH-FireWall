@@ -1,9 +1,8 @@
 package rule
 
 import (
-	"YH-FireWall/internal/model/flow"
+	"YH-FireWall/internal/rule/group"
 	"fmt"
-	"net"
 
 	"github.com/google/gopacket/layers"
 )
@@ -17,16 +16,16 @@ type Rule struct {
 	enable   bool
 
 	// 动态解析
-	srcNets  []net.IPNet
-	srcPorts [][2]uint16
+	srcPrefixs *group.PrefixGroup
+	dstPrefixs *group.PrefixGroup
 
-	dstNets  []net.IPNet
-	dstPorts [][2]uint16
+	srcPorts *group.PortRange
+	dstPorts *group.PortRange
 
-	inDevs  map[uint32]struct{}
-	outDevs map[uint32]struct{}
+	inDevs  *group.Set[uint32]
+	outDevs *group.Set[uint32]
 
-	protocols map[layers.IPProtocol]struct{}
+	protocols *group.Set[layers.IPProtocol]
 }
 
 func New(cfg *Info) (*Rule, error) {
@@ -46,7 +45,7 @@ func New(cfg *Info) (*Rule, error) {
 	}
 	// 源网络
 	var err error
-	if r.srcNets, err = parseIPNet(cfg.SrcNet); err != nil {
+	if r.srcPrefixs, err = parsePrefix(cfg.SrcNet); err != nil {
 		return nil, fmt.Errorf("parse source network failed: %w", err)
 	}
 	// 源端口
@@ -54,7 +53,7 @@ func New(cfg *Info) (*Rule, error) {
 		return nil, fmt.Errorf("parse source port failed: %w", err)
 	}
 	// 目标网络
-	if r.dstNets, err = parseIPNet(cfg.TarNet); err != nil {
+	if r.dstPrefixs, err = parseIPNet(cfg.TarNet); err != nil {
 		return nil, fmt.Errorf("parse target network failed: %w", err)
 	}
 	// 目标端口
@@ -81,56 +80,17 @@ func (r *Rule) Info() *Info {
 		Id:       r.id,
 		Group:    r.group,
 		Comment:  r.comment,
-		SrcNet:   stringifyIPNet(r.srcNets),
-		SrcPort:  stringifyPort(r.srcPorts),
-		TarNet:   stringifyIPNet(r.dstNets),
-		TarPort:  stringifyPort(r.dstPorts),
-		InDev:    stringifyDev(r.inDevs),
-		OutDev:   stringifyDev(r.outDevs),
-		Protocol: stringifyProtocol(r.protocols),
+		SrcNet:   stringifyIPNet(r.srcPrefixs.Raw()),
+		SrcPort:  stringifyPort(r.srcPorts.Raw()),
+		TarNet:   stringifyIPNet(r.dstPrefixs.Raw()),
+		TarPort:  stringifyPort(r.dstPorts.Raw()),
+		InDev:    stringifyDev(r.inDevs.Raw()),
+		OutDev:   stringifyDev(r.outDevs.Raw()),
+		Protocol: stringifyProtocol(r.protocols.Raw()),
 		Accept:   r.accept,
 		Priority: r.priority,
 		Enable:   r.enable,
 	}
-}
-
-func (r *Rule) Match(flow *flow.Flow) bool {
-	// 这里可以通过架构去优化，减少if次数
-	if !r.enable {
-		return false
-	}
-	// 匹配 入口网卡 // 为空默认跳过该检查
-	if !matchDev(r.inDevs, flow.InDev) {
-		return false
-	}
-	// 匹配 出口网卡 // 为空默认跳过该检查
-	if !matchDev(r.outDevs, flow.OutDev) {
-		return false
-	}
-	// 匹配 协议 // 为空默认跳过该检查
-	if !matchProtocol(r.protocols, flow.Protocol) {
-		return false
-	}
-	// 匹配 源 IP
-	if !matchIPNet(r.srcNets, flow.SrcIP) {
-		return false
-	}
-	// 匹配 目标 IP
-	if !matchIPNet(r.dstNets, flow.DstIP) {
-		return false
-	}
-	// 匹配 端口（如果这个协议有端口）
-	if flow.Protocol == layers.IPProtocolTCP || flow.Protocol == layers.IPProtocolUDP || flow.Protocol == layers.IPProtocolSCTP || flow.Protocol == layers.IPProtocolUDPLite {
-		// 匹配 源端口
-		if !matchPort(r.srcPorts, flow.SrcPort) {
-			return false
-		}
-		// 匹配 目标端口
-		if !matchPort(r.dstPorts, flow.DstPort) {
-			return false
-		}
-	}
-	return true
 }
 
 func (r *Rule) Update(o Option) error {
@@ -152,7 +112,7 @@ func (r *Rule) Update(o Option) error {
 
 	var err error
 	if o.SrcNet != nil {
-		if r.srcNets, err = parseIPNet(*o.SrcNet); err != nil {
+		if r.srcPrefixs, err = parseIPNet(*o.SrcNet); err != nil {
 			return fmt.Errorf("parse source network failed: %w", err)
 		}
 	}
@@ -162,7 +122,7 @@ func (r *Rule) Update(o Option) error {
 		}
 	}
 	if o.TarNet != nil {
-		if r.dstNets, err = parseIPNet(*o.TarNet); err != nil {
+		if r.dstPrefixs, err = parseIPNet(*o.TarNet); err != nil {
 			return fmt.Errorf("parse target network failed: %w", err)
 		}
 	}

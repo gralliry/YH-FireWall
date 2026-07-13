@@ -19,14 +19,6 @@ type Info struct {
 	RemoteIP   net.IP            `json:"remoteIP"`
 	RemotePort uint16            `json:"remotePort"`
 
-	// 进程信息
-	Fd   int32  `json:"fd"`
-	Pid  int32  `json:"pid"`
-	Exe  string `json:"exe"`
-	Name string `json:"name"`
-	Cmd  string `json:"cmd"`
-	User string `json:"user"`
-
 	// 网卡方向信息
 	InInterface  string         `json:"inInterface"`
 	OutInterface string         `json:"outInterface"`

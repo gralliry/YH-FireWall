@@ -1,47 +1,47 @@
 package rule
 
 import (
-	"net"
-
-	"github.com/google/gopacket/layers"
+	"YH-FireWall/internal/flow"
 )
 
-func matchIPNet(nets []net.IPNet, n net.IP) bool {
-	if len(nets) == 0 {
-		return true
+func (r *Rule) Match(f *flow.Flow) bool {
+	// 这里可以通过架构去优化，减少if次数
+	if !r.enable {
+		return false
 	}
-	for _, ipnet := range nets {
-		if ipnet.Contains(n) {
-			return true
+	// 匹配 入口网卡 // 为空默认跳过该检查
+	if r.inDevs != nil && !r.inDevs.Contains(f.InDev) {
+		return false
+	}
+	// 匹配 出口网卡 // 为空默认跳过该检查
+	if r.outDevs != nil && !r.outDevs.Contains(f.OutDev) {
+		return false
+	}
+	// 匹配 协议 // 为空默认跳过该检查
+	if r.protocols != nil && !r.protocols.Contains(f.Protocol) {
+		return false
+	}
+	// 匹配 源 IP
+	if r.srcPrefixs != nil && !r.srcPrefixs.Contains(f.SrcIP) {
+		return false
+	}
+	// 匹配 目标 IP
+	if r.dstPrefixs != nil && !r.dstPrefixs.Contains(f.DstIP) {
+		return false
+	}
+	// 匹配 端口（如果这个协议有端口）
+	if r.srcPorts != nil || r.dstPorts != nil {
+		if !f.HasPort {
+			return false
+		}
+		// 源端口
+		if r.srcPorts != nil && !r.srcPorts.Contains(f.SrcPort) {
+			return false
+		}
+		// 目标端口
+		if r.dstPorts != nil && !r.dstPorts.Contains(f.DstPort) {
+			return false
 		}
 	}
-	return false
-}
-
-func matchPort(ports [][2]uint16, port uint16) bool {
-	if len(ports) == 0 {
-		return true
-	}
-	for _, pair := range ports {
-		if pair[0] <= port && port <= pair[1] {
-			return true
-		}
-	}
-	return false
-}
-
-func matchDev(devs map[uint32]struct{}, d *uint32) bool {
-	if devs == nil || d == nil {
-		return true
-	}
-	_, exists := devs[*d]
-	return exists
-}
-
-func matchProtocol(ps map[layers.IPProtocol]struct{}, p layers.IPProtocol) bool {
-	if ps == nil {
-		return true
-	}
-	_, exists := ps[p]
-	return exists
+	return true
 }

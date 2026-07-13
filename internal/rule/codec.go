@@ -3,13 +3,25 @@ package rule
 import (
 	"YH-FireWall/internal/itable"
 	"fmt"
-	"net"
-	"sort"
+	"net/netip"
 	"strconv"
 	"strings"
 
 	"github.com/google/gopacket/layers"
 )
+
+var pName2p map[string]layers.IPProtocol
+
+func init() {
+	pName2p = make(map[string]layers.IPProtocol)
+	for p := layers.IPProtocol(0); p < 255; p++ {
+		name := p.String()
+		if strings.HasPrefix(name, "Unknown(") {
+			continue
+		}
+		pName2p[strings.ToLower(name)] = p
+	}
+}
 
 func split(raw string) []string {
 	return strings.FieldsFunc(raw, func(r rune) bool {
@@ -17,31 +29,37 @@ func split(raw string) []string {
 	})
 }
 
-func parseIPNet(raw string) ([]net.IPNet, error) {
+func GetProtocolNames() []string {
+	names := make([]string, 0)
+	for k := range pName2p {
+		names = append(names, k)
+	}
+	return names
+}
+
+// parse =======================================================================
+
+func parsePrefix(raw string) ([]netip.Prefix, error) {
 	parts := split(raw)
 	if len(parts) == 0 {
 		return nil, nil
 	}
-	m := make([]net.IPNet, 0)
+
+	prefixes := make([]netip.Prefix, 0, len(parts))
 	for _, p := range parts {
-		if _, ipnet, err := net.ParseCIDR(p); err == nil {
-			m = append(m, *ipnet)
+		// CIDR
+		if prefix, err := netip.ParsePrefix(p); err == nil {
+			prefixes = append(prefixes, prefix.Masked())
 			continue
 		}
-		ip := net.ParseIP(p)
-		if ip == nil {
-			return nil, fmt.Errorf("invalid ip/net: %s", p)
+		// 单个 IP
+		addr, err := netip.ParseAddr(p)
+		if err != nil {
+			return nil, fmt.Errorf("invalid IP/CIDR %q", p)
 		}
-		var mask net.IPMask
-		if ip.To4() != nil {
-			mask = net.CIDRMask(32, 32)
-		} else {
-			mask = net.CIDRMask(128, 128)
-		}
-		ipnet := net.IPNet{IP: ip, Mask: mask}
-		m = append(m, ipnet)
+		prefixes = append(prefixes, netip.PrefixFrom(addr, addr.BitLen()))
 	}
-	return m, nil
+	return prefixes, nil
 }
 
 func parsePort(raw string) ([][2]uint16, error) {
@@ -49,7 +67,7 @@ func parsePort(raw string) ([][2]uint16, error) {
 	if len(parts) == 0 {
 		return nil, nil
 	}
-	tmp := make([][2]uint16, 0)
+	ranges := make([][2]uint16, 0)
 	for _, part := range parts {
 		if strings.Contains(part, "-") {
 			se := strings.SplitN(part, "-", 2)
@@ -73,7 +91,7 @@ func parsePort(raw string) ([][2]uint16, error) {
 			if start > end {
 				return nil, fmt.Errorf("invalid port range: %s", part)
 			}
-			tmp = append(tmp, [2]uint16{uint16(start), uint16(end)})
+			ranges = append(ranges, [2]uint16{uint16(start), uint16(end)})
 		} else {
 			val, err := strconv.Atoi(part)
 			if err != nil {
@@ -82,66 +100,24 @@ func parsePort(raw string) ([][2]uint16, error) {
 			if val < 0 || val > 65535 {
 				return nil, fmt.Errorf("port out of range: %s", part)
 			}
-			tmp = append(tmp, [2]uint16{uint16(val), uint16(val)})
+			ranges = append(ranges, [2]uint16{uint16(val), uint16(val)})
 		}
 	}
-	sort.Slice(tmp, func(i, j int) bool {
-		if tmp[i][0] == tmp[j][0] {
-			return tmp[i][1] < tmp[j][1]
-		}
-		return tmp[i][0] < tmp[j][0]
-	})
-	merged := make([][2]uint16, 0, len(tmp))
-	for _, r := range tmp {
-		if len(merged) == 0 {
-			merged = append(merged, r)
-			continue
-		}
-		lastIndex := len(merged) - 1
-		if r[0] <= merged[lastIndex][1]+1 {
-			if r[1] > merged[lastIndex][1] {
-				merged[lastIndex][1] = r[1]
-			}
-		} else {
-			merged = append(merged, r)
-		}
-	}
-	return merged, nil
+	return ranges, nil
 }
 
-func parseDev(raw string) (map[uint32]struct{}, error) {
+func parseDev(raw string) ([]uint32, error) {
 	parts := split(raw)
 	if len(parts) == 0 {
 		return nil, nil
 	}
-	m := make(map[uint32]struct{})
+	m := make([]uint32, 0)
 	for _, name := range parts {
 		if idx, ok := itable.LookupByName(name); ok {
-			m[uint32(idx)] = struct{}{}
+			m = append(m, uint32(idx))
 		}
 	}
 	return m, nil
-}
-
-var protocolName2Protocol map[string]layers.IPProtocol
-
-func init() {
-	protocolName2Protocol = make(map[string]layers.IPProtocol)
-	for p := layers.IPProtocol(0); p < 255; p++ {
-		name := p.String()
-		if strings.HasPrefix(name, "Unknown(") {
-			continue
-		}
-		protocolName2Protocol[strings.ToLower(name)] = p
-	}
-}
-
-func GetAllProtocolNames() []string {
-	protocols := make([]string, 0, len(protocolName2Protocol))
-	for k := range protocolName2Protocol {
-		protocols = append(protocols, k)
-	}
-	return protocols
 }
 
 func parseProtocol(raw string) (map[layers.IPProtocol]struct{}, error) {
@@ -152,7 +128,7 @@ func parseProtocol(raw string) (map[layers.IPProtocol]struct{}, error) {
 	m := make(map[layers.IPProtocol]struct{})
 	for _, p := range parts {
 		ptcStr := strings.ToLower(p)
-		if ptc, ok := protocolName2Protocol[ptcStr]; ok {
+		if ptc, ok := pName2p[ptcStr]; ok {
 			m[ptc] = struct{}{}
 		} else {
 			return nil, fmt.Errorf("invalid protocol: %s", p)
@@ -161,7 +137,9 @@ func parseProtocol(raw string) (map[layers.IPProtocol]struct{}, error) {
 	return m, nil
 }
 
-func stringifyIPNet(nets []net.IPNet) string {
+// stringify =======================================================================
+
+func stringifyIPNet(nets []netip.Prefix) string {
 	var parts []string
 	for _, n := range nets {
 		parts = append(parts, n.String())
@@ -181,17 +159,11 @@ func stringifyPort(ports [][2]uint16) string {
 	return strings.Join(parts, ",")
 }
 
-func stringifyDev(devs map[uint32]struct{}) string {
-	var parts []string
-	for k := range devs {
-		if ifi, err := net.InterfaceByIndex(int(k)); err == nil {
-			parts = append(parts, ifi.Name)
-		}
-	}
-	return strings.Join(parts, ",")
+func stringifyDev(devs []string) string {
+	return strings.Join(devs, ",")
 }
 
-func stringifyProtocol(protocols map[layers.IPProtocol]struct{}) string {
+func stringifyProtocol(protocols []string) string {
 	var parts []string
 	for p := range protocols {
 		parts = append(parts, strings.ToLower(p.String()))

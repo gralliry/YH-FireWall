@@ -80,7 +80,7 @@ func pushByProcess() {
 		}
 		// ip and port
 		flow := flow.Flow{
-			Family:   conn.Family,
+			Family:   uint8(conn.Family),
 			Protocol: protocol,
 
 			SrcIP:   net.ParseIP(conn.Laddr.IP),
@@ -90,12 +90,10 @@ func pushByProcess() {
 		}
 		// 查找网卡
 		if inDev, exist := itable.LookupByIp(flow.SrcIP.String()); exist {
-			inDev_ := uint32(inDev)
-			flow.InDev = &inDev_
+			flow.InDev = uint32(inDev)
 		}
 		if outDev, exist := itable.LookupByIp(flow.DstIP.String()); exist {
-			outDev_ := uint32(outDev)
-			flow.OutDev = &outDev_
+			flow.OutDev = uint32(outDev)
 		}
 		//  key
 		lkey := flow.LKey()

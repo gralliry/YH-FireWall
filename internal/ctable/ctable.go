@@ -1,50 +1,48 @@
 package ctable
 
 import (
+	"YH-FireWall/internal/model/flow"
 	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/go-co-op/gocron/v2"
+	"github.com/robfig/cron/v3"
 )
 
 var (
+	ctx    context.Context
+	cancel context.CancelFunc
+	mutex  sync.RWMutex
+
 	table     map[string]*Connection
 	namespace map[string]*Connection
-	
-	mutex     sync.RWMutex
-	scheduler gocron.Scheduler
+	channel   chan *flow.Flow
+
+	scheduler *cron.Cron
 )
 
-func Start(ctx context.Context) error {
+func Start() error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	table = make(map[string]*Connection)
 	namespace = make(map[string]*Connection)
-	clean()
-	s, err := gocron.NewScheduler()
-	if err != nil {
-		return err
-	}
-	_, err = s.NewJob(
-		gocron.DurationJob(time.Minute),
-		gocron.NewTask(clean),
-	)
-	if err != nil {
-		return err
-	}
-	s.Start()
-	scheduler = s
-	go func() {
-		<-ctx.Done()
-		s.Shutdown()
-	}()
+
+	channel = make(chan *flow.Flow, 1024)
+
+	ctx, cancel = context.WithCancel(context.Background())
+
+	go clean(ctx)
+	go handle(ctx)
+
 	return nil
 }
 
 func Close() error {
 	if scheduler != nil {
-		return scheduler.Shutdown()
+		<-scheduler.Stop().Done()
 	}
 	return nil
 }
@@ -86,14 +84,63 @@ func Remove(id string) error {
 	return nil
 }
 
-func clean() {
-	mutex.Lock()
-	defer mutex.Unlock()
-	for id, conn := range namespace {
-		if conn.Expired() {
-			delete(namespace, id)
-			delete(table, conn.LKey())
-			delete(table, conn.RKey())
+func clean(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			mutex.Lock()
+			defer mutex.Unlock()
+			for id, conn := range namespace {
+				if !conn.Expired() {
+					continue
+				}
+				delete(namespace, id)
+				delete(table, conn.LKey())
+				delete(table, conn.RKey())
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func handle(ctx context.Context) {
+	for {
+		select {
+		case flow := <-channel:
+			// 添加连接键
+			lkey := flow.LKey()
+			rkey := flow.RKey()
+			//
+			conn, exists := table[lkey]
+			if exists {
+				// 检测连接状态
+				isClosed, isExpired := conn.Closed(), conn.Expired()
+				if isClosed {
+					continue
+				}
+
+				if !isExpired {
+					// 如果没有过期，更新
+					conn.Active()
+					continue
+				}
+
+				delete(table, lkey)
+				delete(table, rkey)
+				delete(namespace, conn.Id())
+			}
+			// 添加连接 // 获取方向
+			conn = New(flow)
+			// 写入表
+			table[lkey] = conn
+			table[rkey] = conn
+			namespace[conn.Id()] = conn
+		case <-ctx.Done():
+			// 退出
+			return
 		}
 	}
 }
