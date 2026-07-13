@@ -1,29 +1,17 @@
-package handler
+package internal
 
 import (
 	"YH-FireWall/internal/config"
-	"YH-FireWall/internal/connection"
-	_const "YH-FireWall/internal/const"
 	"YH-FireWall/internal/ctable"
-	"YH-FireWall/internal/iface"
+	"YH-FireWall/internal/itable"
 	"YH-FireWall/internal/rtable"
 	"YH-FireWall/internal/rule"
-	"context"
 )
 
 type Handler struct {
-	Cancel context.CancelFunc
 }
 
-func (h *Handler) Start() error {
-	return nil
-}
-
-func (h *Handler) Stop() error {
-	h.Cancel()
-	return nil
-}
-
+// 规则模块
 func (h *Handler) AppendRule(ro *rule.Option) (string, error) {
 	return rtable.Append(ro)
 }
@@ -33,15 +21,17 @@ func (h *Handler) UpdateRule(id string, ro *rule.Option) error {
 func (h *Handler) DeleteRule(id string) error {
 	return rtable.Delete(id)
 }
-func (h *Handler) GetRule(id string) *rule.Config {
-	return rtable.Get(id)
+func (h *Handler) SearchRule(id string) *rule.Info {
+	return rtable.Search(id)
 }
-func (h *Handler) GetRules() []rule.Config {
-	return rtable.GetAll()
+func (h *Handler) SearchRules() []rule.Info {
+	return rtable.SearchAll()
 }
 func (h *Handler) EnableRule(id string, enable bool) bool {
 	return rtable.Enable(id, enable)
 }
+
+// 配置模块
 func (h *Handler) GetConfig() string {
 	return string(config.Read())
 }
@@ -50,22 +40,26 @@ func (h *Handler) SetConfig(raw string) error {
 	return config.Save([]byte(raw))
 }
 
-func (h *Handler) GetConnections() []connection.Config {
-	return ctable.GetAll()
+// 连接模块
+func (h *Handler) GetConnections() []ctable.Info {
+	return ctable.Infos()
 }
 
 func (h *Handler) CloseConnection(id string) error {
 	return ctable.Remove(id)
 }
 
-func (h *Handler) GetInterfaces() ([]iface.Config, error) {
-	return iface.GetAll()
+// 接口模块
+func (h *Handler) GetInterfaces() []itable.Info {
+	return itable.Infos()
 }
 
+// 协议常量
 func (h *Handler) GetProtocols() []string {
 	return rule.GetAllProtocolNames()
 }
 
+// 版本
 func (h *Handler) Version() string {
-	return _const.Version
+	return config.Version
 }

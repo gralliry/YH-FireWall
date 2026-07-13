@@ -1,28 +1,25 @@
 package ctable
 
 import (
-	"YH-FireWall/internal/connection"
-	"YH-FireWall/internal/iface"
+	"YH-FireWall/internal/itable"
+	"YH-FireWall/internal/model/flow"
+	"net"
+
 	"github.com/google/gopacket/layers"
 	nnet "github.com/shirou/gopsutil/v4/net"
 	nprocess "github.com/shirou/gopsutil/v4/process"
-	"net"
 )
 
-func Push(
-	family uint32, proto layers.IPProtocol,
-	srcIP net.IP, srcPort uint16, dstIP net.IP, dstPort uint16,
-	inDev, outDev *uint32,
-) bool {
+func Push(flow *flow.Flow) bool {
 	mutex.Lock()
 	defer mutex.Unlock()
 	// 添加连接键
-	lkey := connection.MakeKey(proto, srcIP, srcPort, dstIP, dstPort)
-	rkey := connection.MakeKey(proto, dstIP, dstPort, srcIP, srcPort)
-	conn, exists := table[lkey]
-	if exists {
+	lkey := flow.LKey()
+	rkey := flow.RKey()
+	//
+	if conn, exists := table[lkey]; exists {
 		// 检测连接状态
-		isClosed, isExpired := conn.Status()
+		isClosed, isExpired := conn.Closed(), conn.Expired()
 		switch {
 		case isClosed && isExpired:
 			// 如果被关闭 且 已过期
@@ -35,61 +32,37 @@ func Push(
 			return false
 		default:
 			// 如果没有过期，更新
-			conn.UpdateByPush()
+			conn.Active()
 			return true
 		}
+	} else {
+		// 添加连接 // 获取方向
+		conn = New(flow)
+		// 写入表
+		table[lkey] = conn
+		table[rkey] = conn
+		namespace[conn.Id()] = conn
+		//
+		return true
 	}
-	// 添加连接 // 获取方向
-	switch {
-	case inDev != nil && outDev != nil:
-		// 转发模式
-		name, err := net.InterfaceByIndex(int(*outDev))
-		if err != nil {
-			return false
-		}
-		conn = connection.NewByPush(family, proto, srcIP, srcPort, connection.Forward, dstIP, dstPort, name.Name)
-	case inDev != nil:
-		// 入口模式 // 源是外部连接
-		name, err := net.InterfaceByIndex(int(*inDev))
-		if err != nil {
-			return false
-		}
-		conn = connection.NewByPush(family, proto, dstIP, dstPort, connection.Inbound, srcIP, srcPort, name.Name)
-	case outDev != nil:
-		// 出口模式 // 源是内部连接
-		name, err := net.InterfaceByIndex(int(*outDev))
-		if err != nil {
-			return false
-		}
-		conn = connection.NewByPush(family, proto, srcIP, srcPort, connection.Outbound, dstIP, dstPort, name.Name)
-	default:
-		// 未知数据，直接停止
-		return false
-	}
-	// 写入表
-	table[lkey] = conn
-	table[rkey] = conn
-	namespace[conn.Id()] = conn
-	//
-	return true
 }
 
 func pushByProcess() {
-	// 获取进程列表
-	processList, err := nprocess.Processes()
-	if err != nil {
-		return
-	}
 	// 获取进程信息
 	processMap := make(map[int32]*nprocess.Process)
-	for _, pc := range processList {
-		processMap[pc.Pid] = pc
+	if processList, err := nprocess.Processes(); err == nil {
+		for _, pc := range processList {
+			processMap[pc.Pid] = pc
+		}
+	} else {
+		return
 	}
 	// 获取网络连接列表
 	connectionList, err := nnet.Connections("inet")
 	if err != nil {
 		return
 	}
+	// 获取网卡ip映射
 	for _, conn := range connectionList {
 		// 2: ipv4, 10: ipv6
 		if conn.Family != 2 && conn.Family != 10 {
@@ -106,59 +79,41 @@ func pushByProcess() {
 			continue
 		}
 		// ip and port
-		localIP, remoteIP := net.ParseIP(conn.Laddr.IP), net.ParseIP(conn.Raddr.IP)
-		localPort, remotePort := uint16(conn.Laddr.Port), uint16(conn.Raddr.Port)
+		flow := flow.Flow{
+			Family:   conn.Family,
+			Protocol: protocol,
+
+			SrcIP:   net.ParseIP(conn.Laddr.IP),
+			SrcPort: uint16(conn.Laddr.Port),
+			DstIP:   net.ParseIP(conn.Raddr.IP),
+			DstPort: uint16(conn.Raddr.Port),
+		}
+		// 查找网卡
+		if inDev, exist := itable.LookupByIp(flow.SrcIP.String()); exist {
+			inDev_ := uint32(inDev)
+			flow.InDev = &inDev_
+		}
+		if outDev, exist := itable.LookupByIp(flow.DstIP.String()); exist {
+			outDev_ := uint32(outDev)
+			flow.OutDev = &outDev_
+		}
 		//  key
-		lkey := connection.MakeKey(protocol, localIP, localPort, remoteIP, remotePort)
+		lkey := flow.LKey()
 		//
-		if connect, exists := table[lkey]; exists {
-			// 添加连接进程信息
-			if connect.IsProcessInfoEmpty() {
-				if pc, e := processMap[conn.Pid]; e {
-					// 获取进程信息
-					exe, _ := pc.Exe()
-					name, _ := pc.Name()
-					username, _ := pc.Username()
-					cmd, _ := pc.Cmdline()
-					// 更新进程信息
-					connect.UpdateByProcess(conn.Fd, conn.Pid, exe, name, cmd, username, conn.Status)
-					continue
-				}
-			}
-		} else {
-			// 查找网卡
-			localInterface, remoteInterface := iface.FindNameByIp(localIP), iface.FindNameByIp(remoteIP)
-			// 添加连接 // 获取方向
-			switch {
-			case localInterface != "" && remoteInterface != "":
-				// 转发模式
-				connect = connection.NewByPush(conn.Family, protocol, localIP, localPort, connection.Forward, remoteIP, remotePort, localInterface)
-			case localInterface != "":
-				// 入口模式 // 源是外部连接
-				connect = connection.NewByPush(conn.Family, protocol, localIP, localPort, connection.Inbound, remoteIP, remotePort, localInterface)
-			case remoteInterface != "":
-				// 出口模式 // 源是内部连接
-				connect = connection.NewByPush(conn.Family, protocol, localIP, localPort, connection.Outbound, remoteIP, remotePort, remoteInterface)
-			default:
-				// 转发模式
-				connect = connection.NewByPush(conn.Family, protocol, localIP, localPort, connection.Forward, remoteIP, remotePort, "")
-			}
-			// 更新连接进程信息
-			if pc, e := processMap[conn.Pid]; e {
-				// 获取进程信息
-				exe, _ := pc.Exe()
-				name, _ := pc.Name()
-				username, _ := pc.Username()
-				cmd, _ := pc.Cmdline()
-				// 更新进程信息
-				connect.UpdateByProcess(conn.Fd, conn.Pid, exe, name, cmd, username, conn.Status)
-			}
+		connect, exists := table[lkey]
+		if !exists {
+			connect = New(&flow)
 			// 添加连接信息
-			rkey := connection.MakeKey(protocol, remoteIP, remotePort, localIP, localPort)
+			rkey := connect.RKey()
 			// 写入表
 			table[lkey] = connect
 			table[rkey] = connect
 			namespace[connect.Id()] = connect
+		}
+		// 添加连接进程信息
+		if pc, e := processMap[conn.Pid]; e {
+			// 更新进程信息
+			connect.SetProcess(pc)
 		}
 	}
 }

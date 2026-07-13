@@ -1,6 +1,6 @@
-package iface
+package itable
 
-type Config struct {
+type Info struct {
 	Index int      `json:"index"`
 	Name  string   `json:"name"`
 	MAC   string   `json:"mac"`

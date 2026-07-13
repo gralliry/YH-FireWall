@@ -1,19 +1,14 @@
 package queue
 
 import (
-	"YH-FireWall/internal/ctable"
-	"YH-FireWall/internal/rtable"
 	"context"
 	"errors"
 	"fmt"
-	"github.com/florianl/go-nfqueue"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/mdlayher/netlink"
-	"log"
-	"net"
 	"os/exec"
 	"time"
+
+	"github.com/florianl/go-nfqueue"
+	"github.com/mdlayher/netlink"
 )
 
 var (
@@ -22,43 +17,66 @@ var (
 
 // sudo iptables -L -n -v
 
-var cmdSet = `
+const cmdSet = `
 sudo iptables -C INPUT   -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I INPUT   -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
 sudo iptables -C OUTPUT  -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I OUTPUT  -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
 sudo iptables -C FORWARD -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I FORWARD -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
 `
 
-var cmdUnset = `
+const cmdUnset = `
 sudo iptables -L INPUT   --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}' | xargs -r sudo iptables -D INPUT
 sudo iptables -L OUTPUT  --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}' | xargs -r sudo iptables -D OUTPUT
 sudo iptables -L FORWARD --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}' | xargs -r sudo iptables -D FORWARD
 `
 
-func Start(ctx context.Context, nfqNo uint16) (err error) {
+type Queue struct {
+	// 上下文管理
+	ctx    context.Context
+	cancel context.CancelFunc
+	// 配置管理
+	config  Config
+	handler Handler
+	// 队列
+	nfq *nfqueue.Nfqueue
+}
+
+func New(config *Config, handler Handler) *Queue {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Queue{
+		ctx:     ctx,
+		cancel:  cancel,
+		config:  *config,
+		handler: handler,
+	}
+}
+
+func (q *Queue) Start() error {
 	// 打开队列
-	nfq, err = nfqueue.Open(&nfqueue.Config{
-		NfQueue:      nfqNo,
+	nfq, err := nfqueue.Open(&nfqueue.Config{
+		NfQueue:      q.config.No,
 		MaxPacketLen: 2048,
 		MaxQueueLen:  2048,
 		Copymode:     nfqueue.NfQnlCopyPacket,
 		WriteTimeout: 150 * time.Millisecond,
 	})
+	if err != nil {
+		return err
+	}
 	// Avoid receiving ENOBUFS errors.
-	if err = nfq.SetOption(netlink.NoENOBUFS, true); err != nil {
+	if err := nfq.SetOption(netlink.NoENOBUFS, true); err != nil {
 		return err
 	}
 	// 注册处理函数
-	if err = nfq.RegisterWithErrorFunc(ctx, handler, func(err error) int {
-		log.Printf("nfqueue error: %v", err)
-		return -1
-	}); err != nil {
+	if err := nfq.RegisterWithErrorFunc(q.ctx, handleFunc, errorFunc); err != nil {
 		return err
 	}
 	// 设置包导向
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, nfqNo))
-	if err = cmd.Run(); err != nil {
+	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, q.config.No))
+	if err := cmd.Run(); err != nil {
 		return err
 	}
+	// 写入注册器
+	q.nfq = nfq
 	return nil
 }
 
@@ -73,90 +91,4 @@ func Close() error {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
-}
-
-func handler(a nfqueue.Attribute) int {
-	var (
-		srcIP    net.IP
-		srcPort  uint16
-		dstIP    net.IP
-		dstPort  uint16
-		inDev    = a.InDev
-		outDev   = a.OutDev
-		family   uint32
-		protocol layers.IPProtocol
-	)
-	setVerdict := func(v int) {
-		if err := nfq.SetVerdict(*a.PacketID, v); err != nil {
-			log.Printf("SetVerdict error: %v", err)
-		}
-	}
-	// 使用 gopacket 解析 Payload
-	rawpacket := gopacket.NewPacket(*a.Payload, layers.LayerTypeIPv4, gopacket.Default)
-	// 获取 IPv4 或 IPv6 地址
-	if ip4 := rawpacket.Layer(layers.LayerTypeIPv4); ip4 != nil {
-		ip := ip4.(*layers.IPv4)
-		srcIP, dstIP, protocol = ip.SrcIP, ip.DstIP, ip.Protocol
-		family = 2
-	} else if ip6 := rawpacket.Layer(layers.LayerTypeIPv6); ip6 != nil {
-		ip := ip6.(*layers.IPv6)
-		srcIP, dstIP, protocol = ip.SrcIP, ip.DstIP, ip.NextHeader
-		family = 10
-	} else {
-		setVerdict(nfqueue.NfDrop)
-		return 0
-	}
-	// 匹配端口 // TCP/UDP 端口
-	switch protocol {
-	case layers.IPProtocolTCP:
-		tcp := rawpacket.Layer(layers.LayerTypeTCP)
-		if tcp == nil {
-			setVerdict(nfqueue.NfDrop)
-			return 0
-		}
-		t := tcp.(*layers.TCP)
-		srcPort, dstPort = uint16(t.SrcPort), uint16(t.DstPort)
-	case layers.IPProtocolUDP:
-		udp := rawpacket.Layer(layers.LayerTypeUDP)
-		if udp == nil {
-			setVerdict(nfqueue.NfDrop)
-			return 0
-		}
-		u := udp.(*layers.UDP)
-		srcPort, dstPort = uint16(u.SrcPort), uint16(u.DstPort)
-	}
-	// 匹配规则
-	if !rtable.Match(srcIP, srcPort, dstIP, dstPort, inDev, outDev, protocol) {
-		setVerdict(nfqueue.NfDrop)
-		return 0
-	}
-	// 这里推入相关参数，并创建连接
-	if protocol == layers.IPProtocolTCP || protocol == layers.IPProtocolUDP {
-		if !ctable.Push(family, protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev) {
-			// 伪装RST
-			// 已经伪装了包，这里就阻止
-			setVerdict(nfqueue.NfDrop)
-			return 0
-		}
-	}
-	// 打印日志
-	pringLog(protocol, srcIP, srcPort, dstIP, dstPort, inDev, outDev)
-	// 继续处理
-	setVerdict(nfqueue.NfAccept)
-	return 0
-}
-
-func pringLog(proto layers.IPProtocol, srcIP net.IP, srcPort uint16, dstIP net.IP, dstPort uint16, inDev *uint32, outDev *uint32) {
-	var direction string
-	switch {
-	case inDev == nil && outDev == nil:
-		direction = "   ->   "
-	case inDev == nil:
-		direction = fmt.Sprintf("%3d->   ", *outDev)
-	case outDev == nil:
-		direction = fmt.Sprintf("   ->%-3d", *inDev)
-	default:
-		direction = fmt.Sprintf("%3d->%-3d", *inDev, *outDev)
-	}
-	log.Printf("[%5s] %15s:%5d -> %15s:%5d (%s)", proto, srcIP, srcPort, dstIP, dstPort, direction)
 }

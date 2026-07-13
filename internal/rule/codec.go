@@ -1,12 +1,14 @@
 package rule
 
 import (
+	"YH-FireWall/internal/itable"
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"net"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/google/gopacket/layers"
 )
 
 func split(raw string) []string {
@@ -22,12 +24,10 @@ func parseIPNet(raw string) ([]net.IPNet, error) {
 	}
 	m := make([]net.IPNet, 0)
 	for _, p := range parts {
-		// 1. 尝试 CIDR
 		if _, ipnet, err := net.ParseCIDR(p); err == nil {
 			m = append(m, *ipnet)
 			continue
 		}
-		// 2. 尝试单个 IP
 		ip := net.ParseIP(p)
 		if ip == nil {
 			return nil, fmt.Errorf("invalid ip/net: %s", p)
@@ -51,7 +51,6 @@ func parsePort(raw string) ([][2]uint16, error) {
 	}
 	tmp := make([][2]uint16, 0)
 	for _, part := range parts {
-		// Range port {start}-{end}
 		if strings.Contains(part, "-") {
 			se := strings.SplitN(part, "-", 2)
 			if len(se) != 2 {
@@ -76,7 +75,6 @@ func parsePort(raw string) ([][2]uint16, error) {
 			}
 			tmp = append(tmp, [2]uint16{uint16(start), uint16(end)})
 		} else {
-			// Single port
 			val, err := strconv.Atoi(part)
 			if err != nil {
 				return nil, fmt.Errorf("invalid port: %s", part)
@@ -87,14 +85,12 @@ func parsePort(raw string) ([][2]uint16, error) {
 			tmp = append(tmp, [2]uint16{uint16(val), uint16(val)})
 		}
 	}
-	// 排序
 	sort.Slice(tmp, func(i, j int) bool {
 		if tmp[i][0] == tmp[j][0] {
 			return tmp[i][1] < tmp[j][1]
 		}
 		return tmp[i][0] < tmp[j][0]
 	})
-	// 合并区间
 	merged := make([][2]uint16, 0, len(tmp))
 	for _, r := range tmp {
 		if len(merged) == 0 {
@@ -102,14 +98,11 @@ func parsePort(raw string) ([][2]uint16, error) {
 			continue
 		}
 		lastIndex := len(merged) - 1
-		// 如果当前区间的起始端口与上一个区间的结束端口相邻或重叠，则合并
 		if r[0] <= merged[lastIndex][1]+1 {
-			// 更新结束端口为两者中的较大值
 			if r[1] > merged[lastIndex][1] {
 				merged[lastIndex][1] = r[1]
 			}
 		} else {
-			// 否则添加新区间
 			merged = append(merged, r)
 		}
 	}
@@ -122,39 +115,25 @@ func parseDev(raw string) (map[uint32]struct{}, error) {
 		return nil, nil
 	}
 	m := make(map[uint32]struct{})
-	for _, p := range split(raw) {
-		if ifi, err := net.InterfaceByName(p); err == nil {
-			m[uint32(ifi.Index)] = struct{}{}
+	for _, name := range parts {
+		if idx, ok := itable.LookupByName(name); ok {
+			m[uint32(idx)] = struct{}{}
 		}
 	}
 	return m, nil
 }
 
-// 手动建立协议名称到协议类型的映射，因为 layers.IPProtocol 的 String 方法才返回人类可读名称
-var protocolName2Protocol = map[string]layers.IPProtocol{
-	strings.ToLower(layers.IPProtocolIPv6HopByHop.String()):    layers.IPProtocolIPv6HopByHop,
-	strings.ToLower(layers.IPProtocolICMPv4.String()):          layers.IPProtocolICMPv4,
-	strings.ToLower(layers.IPProtocolIGMP.String()):            layers.IPProtocolIGMP,
-	strings.ToLower(layers.IPProtocolIPv4.String()):            layers.IPProtocolIPv4,
-	strings.ToLower(layers.IPProtocolTCP.String()):             layers.IPProtocolTCP,
-	strings.ToLower(layers.IPProtocolUDP.String()):             layers.IPProtocolUDP,
-	strings.ToLower(layers.IPProtocolRUDP.String()):            layers.IPProtocolRUDP,
-	strings.ToLower(layers.IPProtocolIPv6.String()):            layers.IPProtocolIPv6,
-	strings.ToLower(layers.IPProtocolIPv6Routing.String()):     layers.IPProtocolIPv6Routing,
-	strings.ToLower(layers.IPProtocolIPv6Fragment.String()):    layers.IPProtocolIPv6Fragment,
-	strings.ToLower(layers.IPProtocolGRE.String()):             layers.IPProtocolGRE,
-	strings.ToLower(layers.IPProtocolESP.String()):             layers.IPProtocolESP,
-	strings.ToLower(layers.IPProtocolAH.String()):              layers.IPProtocolAH,
-	strings.ToLower(layers.IPProtocolICMPv6.String()):          layers.IPProtocolICMPv6,
-	strings.ToLower(layers.IPProtocolNoNextHeader.String()):    layers.IPProtocolNoNextHeader,
-	strings.ToLower(layers.IPProtocolIPv6Destination.String()): layers.IPProtocolIPv6Destination,
-	strings.ToLower(layers.IPProtocolOSPF.String()):            layers.IPProtocolOSPF,
-	strings.ToLower(layers.IPProtocolIPIP.String()):            layers.IPProtocolIPIP,
-	strings.ToLower(layers.IPProtocolEtherIP.String()):         layers.IPProtocolEtherIP,
-	strings.ToLower(layers.IPProtocolVRRP.String()):            layers.IPProtocolVRRP,
-	strings.ToLower(layers.IPProtocolSCTP.String()):            layers.IPProtocolSCTP,
-	strings.ToLower(layers.IPProtocolUDPLite.String()):         layers.IPProtocolUDPLite,
-	strings.ToLower(layers.IPProtocolMPLSInIP.String()):        layers.IPProtocolMPLSInIP,
+var protocolName2Protocol map[string]layers.IPProtocol
+
+func init() {
+	protocolName2Protocol = make(map[string]layers.IPProtocol)
+	for p := layers.IPProtocol(0); p < 255; p++ {
+		name := p.String()
+		if strings.HasPrefix(name, "Unknown(") {
+			continue
+		}
+		protocolName2Protocol[strings.ToLower(name)] = p
+	}
 }
 
 func GetAllProtocolNames() []string {
@@ -180,4 +159,42 @@ func parseProtocol(raw string) (map[layers.IPProtocol]struct{}, error) {
 		}
 	}
 	return m, nil
+}
+
+func stringifyIPNet(nets []net.IPNet) string {
+	var parts []string
+	for _, n := range nets {
+		parts = append(parts, n.String())
+	}
+	return strings.Join(parts, ",")
+}
+
+func stringifyPort(ports [][2]uint16) string {
+	var parts []string
+	for _, p := range ports {
+		if p[0] == p[1] {
+			parts = append(parts, fmt.Sprintf("%d", p[0]))
+		} else {
+			parts = append(parts, fmt.Sprintf("%d-%d", p[0], p[1]))
+		}
+	}
+	return strings.Join(parts, ",")
+}
+
+func stringifyDev(devs map[uint32]struct{}) string {
+	var parts []string
+	for k := range devs {
+		if ifi, err := net.InterfaceByIndex(int(k)); err == nil {
+			parts = append(parts, ifi.Name)
+		}
+	}
+	return strings.Join(parts, ",")
+}
+
+func stringifyProtocol(protocols map[layers.IPProtocol]struct{}) string {
+	var parts []string
+	for p := range protocols {
+		parts = append(parts, strings.ToLower(p.String()))
+	}
+	return strings.Join(parts, ",")
 }

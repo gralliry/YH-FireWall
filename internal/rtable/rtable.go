@@ -1,143 +1,107 @@
 package rtable
 
 import (
+	"YH-FireWall/internal/model/flow"
+	"YH-FireWall/internal/pkg/flock"
+	"YH-FireWall/internal/pkg/skiplist"
 	"YH-FireWall/internal/rule"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/google/gopacket/layers"
-	"golang.org/x/sys/unix"
-	"io"
 	"log"
-	"net"
-	"os"
-	"path"
-	"sort"
 	"sync"
 )
 
 var (
-	ruleList        []*rule.Rule
-	ruleMap         map[string]*rule.Rule
-	ruleIsListDirty bool
-	mutex           sync.RWMutex
-	file            *os.File
+	rules *skiplist.SkipList[string, *rule.Rule]
 
-	defaultAccept = true
+	mutex  sync.RWMutex
+	lf     *flock.LockedFile
+	config Config
 )
 
-type Config struct {
-	Path          string `json:"path"`
-	DefaultAccept bool   `json:"default_accept"`
+func init() {
+	// 设置默认规则
+	rules = skiplist.New[string](func(a, b *rule.Rule) int {
+		return a.Priority() - b.Priority()
+	})
 }
 
-func Load(config Config) (err error) {
+func Load(config_ Config) (err error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	//
-	defaultAccept = config.DefaultAccept
-	// 确保目录存在
-	if err = os.MkdirAll(path.Dir(config.Path), 0755); err != nil {
-		return fmt.Errorf("failed to create directory for rule table: %w", err)
-	}
-	// 打开文件
-	file, err = os.OpenFile(config.Path, os.O_RDWR|os.O_CREATE, 0644)
+	config = config_
+	//
+	lf, err = flock.Open(config.Path)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", config.Path, err)
+		return fmt.Errorf("failed to open rule file: %w", err)
 	}
-	// 尝试独占锁（非阻塞）
-	if err = unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		_ = file.Close()
-		return fmt.Errorf("failed to lock file %s: %w", config.Path, err)
+	buf, err := lf.Read()
+	if err != nil {
+		return fmt.Errorf("failed to read rule file: %w", err)
 	}
-	// 设置默认规则
-	rules := make([]rule.Config, 0)
-	// 用 Decoder 直接解析
-	decoder := json.NewDecoder(file)
-	if err = decoder.Decode(&rules); err != nil && err != io.EOF {
-		return fmt.Errorf("failed to decode rule file: %w", err)
+	ruleConfigs := make([]rule.Info, 0)
+	if len(buf) > 0 {
+		if err = json.Unmarshal(buf, &ruleConfigs); err != nil {
+			return fmt.Errorf("failed to decode rule file: %w", err)
+		}
 	}
-	// --- 处理规则 ---
-	ruleList = make([]*rule.Rule, 0)
-	ruleMap = make(map[string]*rule.Rule)
 	// 加载配置
-	var rr *rule.Rule
-	for _, rc := range rules {
+	for _, rc := range ruleConfigs {
 		// 匹配
-		if _, exists := ruleMap[rc.Id]; exists {
+		if _, exists := rules.Search(rc.Id); exists {
 			log.Printf("rule %s exists", rc.Id)
 			continue
 		}
 		// 解析
-		if rr, err = rule.Parse(&rc); err != nil {
+		if rr, err := rule.New(&rc); err != nil {
 			log.Printf("failed to parse rule %s: %v", rc.Id, err)
 			continue
+		} else {
+			// 如果都没有，就添加
+			rules.Insert(rc.Id, rr)
 		}
-		// 如果都没有，就添加
-		ruleMap[rc.Id] = rr
-		ruleList = append(ruleList, rr)
 	}
-	// 标记为非脏数据 // 排序为match函数负责
-	ruleIsListDirty = true
 	return nil
 }
 
 func Close() error {
 	mutex.Lock()
 	defer mutex.Unlock()
-	// 重置文件指针
-	if _, err := file.Seek(0, 0); err != nil {
-		return fmt.Errorf("failed to seek file: %w", err)
+	buf, err := json.MarshalIndent(getAll(), "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to encode rules: %w", err)
 	}
-	// 清空文件
-	if err := file.Truncate(0); err != nil {
-		return fmt.Errorf("failed to truncate file: %w", err)
+	if err := lf.Write(buf); err != nil {
+		return err
 	}
-	// 存储
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ") // "" 前缀，"  " 缩进
-	if err := encoder.Encode(getAll()); err != nil {
-		return fmt.Errorf("failed to encode ruleList: %w", err)
-	}
-	if err := file.Sync(); err != nil {
-		return fmt.Errorf("failed to sync file: %w", err)
-	}
-	var errs []error
-	if err := unix.Flock(int(file.Fd()), unix.LOCK_UN); err != nil {
-		errs = append(errs, err)
-	}
-	if err := file.Close(); err != nil {
-		errs = append(errs, err)
-	}
-	return errors.Join(errs...)
+	return lf.Close()
 }
 
 // Append 添加或更新规则
 func Append(ro *rule.Option) (string, error) {
 	// uuid不可能重复
-	rc := ro.Default()
+	rc := ro.Build()
 	//
-	mutex.Lock()
-	defer mutex.Unlock()
-	//
-	rr, err := rule.Parse(rc)
+	rr, err := rule.New(rc)
 	if err != nil {
 		return "", err
 	}
-	// 标记
-	ruleIsListDirty = true
+	//
+	mutex.Lock()
+	defer mutex.Unlock()
 	// 如果都没有，就添加
-	ruleMap[rc.Id] = rr
-	ruleList = append(ruleList, rr)
+	rules.Insert(rr.Id(), rr)
 	//
 	return rr.Id(), nil
 }
 
 // Update 更新规则
 func Update(id string, ro *rule.Option) error {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	rr, exists := ruleMap[id]
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	rr, exists := rules.Search(id)
 	if !exists {
 		return fmt.Errorf("rule %s not exists", id)
 	}
@@ -152,78 +116,55 @@ func Delete(id string) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 	// 获取
-	if _, exists := ruleMap[id]; !exists {
+	ok := rules.Delete(id)
+	if !ok {
 		return fmt.Errorf("rule %s not exists", id)
 	}
-	// 重新构造
-	index := -1
-	for i, r := range ruleList {
-		if r.Id() == id {
-			index = i
-			break
-		}
-	}
-	if index == -1 {
-		return fmt.Errorf("rule %s not exists", id)
-	}
-	// 标记
-	ruleIsListDirty = true
-	// 删除
-	delete(ruleMap, id)
-	// 移动
-	ruleList[index] = ruleList[len(ruleList)-1]
-	ruleList = ruleList[:len(ruleList)-1]
 	return nil
 }
 
 // Match 匹配：按优先级从高到低
-func Match(srcIP net.IP, srcPort uint16, dstIP net.IP, dstPort uint16, inDev *uint32, outDev *uint32, protocol layers.IPProtocol) bool {
-	mutex.Lock()
-	defer mutex.Unlock()
-	// 脏数据
-	if ruleIsListDirty {
-		sort.SliceStable(ruleList, func(i, j int) bool {
-			return ruleList[i].Priority() < ruleList[j].Priority()
-		})
-		ruleIsListDirty = false
-	}
-	// 匹配
-	for _, r := range ruleList {
-		if r.Match(srcIP, srcPort, dstIP, dstPort, inDev, outDev, protocol) {
-			return r.Accept()
-		}
-	}
-	return defaultAccept
-}
-
-func Get(rid string) *rule.Config {
+func Match(flow *flow.Flow) bool {
 	mutex.RLock()
 	defer mutex.RUnlock()
-	if rr, exists := ruleMap[rid]; !exists {
+	// 匹配
+	_, rr, exist := rules.First(func(r *rule.Rule) bool {
+		return r.Match(flow)
+	})
+	if !exist {
+		return config.DefaultAccept
+	}
+	return rr.Accept()
+}
+
+func Search(rid string) *rule.Info {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	if rr, exists := rules.Search(rid); !exists {
 		return nil
 	} else {
-		return rr.Unparse()
+		return rr.Info()
 	}
 }
 
-func getAll() []rule.Config {
-	rules := make([]rule.Config, len(ruleList))
-	for i, r := range ruleList {
-		rules[i] = *r.Unparse()
-	}
-	return rules
-}
-
-func GetAll() []rule.Config {
+func SearchAll() []rule.Info {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	return getAll()
 }
 
+func getAll() []rule.Info {
+	ruleConfigs := make([]rule.Info, rules.Len())
+	rules.Range(func(key string, rr *rule.Rule) {
+		ruleConfigs = append(ruleConfigs, *rr.Info())
+	})
+	return ruleConfigs
+}
+
 func Enable(id string, enable bool) bool {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	rr, exists := ruleMap[id]
+	mutex.Lock()
+	defer mutex.Unlock()
+	rr, exists := rules.Search(id)
 	if !exists {
 		return false
 	}

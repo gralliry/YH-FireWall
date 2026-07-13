@@ -30,10 +30,7 @@ func runCore() {
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP)
 	defer cancel()
 
-	internal.Context = ctx
-	internal.Cancel = cancel
-
-	if err := internal.Start(*configPath); err != nil {
+	if err := internal.Start(ctx, *configPath); err != nil {
 		log.Fatalf("Core service failed to start: %v", err)
 	} else {
 		log.Println("Core service started successfully")

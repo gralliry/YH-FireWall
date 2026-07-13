@@ -1,84 +1,54 @@
 package config
 
 import (
+	"YH-FireWall/internal/pkg/flock"
+	"YH-FireWall/internal/queue"
 	"YH-FireWall/internal/rtable"
 	"YH-FireWall/internal/server/cmdserver"
 	"YH-FireWall/internal/server/webserver"
-	"errors"
 	"fmt"
-	"os"
-	"path"
 	"sync"
-	"time"
 
-	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v3"
 )
 
 var (
-	file    *os.File
+	lf      *flock.LockedFile
 	mutex   sync.RWMutex
 	content []byte
 )
 
 type Config struct {
-	LastUpdateTime string           `json:"last_update_time"`
-	QueueNo        uint16           `json:"queue_no"`
-	Web            webserver.Config `json:"web"`
-	Cmd            cmdserver.Config `json:"cmd"`
-	RuleTable      rtable.Config    `json:"rule_table"`
+	Queue *queue.Config     `json:"queue"`
+	Web   *webserver.Config `json:"web"`
+	Cmd   *cmdserver.Config `json:"cmd"`
+	Rule  *rtable.Config    `json:"rule"`
+}
+
+func (c *Config) Read(buf []byte) error {
+	return yaml.Unmarshal(buf, c)
+}
+
+func (c *Config) Write() []byte {
+	return nil
 }
 
 func Default() *Config {
 	return &Config{
-		LastUpdateTime: time.Now().Format(time.RFC3339),
-		QueueNo:        0,
-		Web: webserver.Config{
-			Enable:       true,
-			Address:      ":8080",
-			AuthUsername: "admin",
-			AuthPassword: "admin",
-			EnableCORS:   true,
-		},
-		Cmd: cmdserver.Config{
-			Enable:     true,
-			SocketPath: "/tmp/yfw.sock",
-		},
-		RuleTable: rtable.Config{
-			Path:          "/etc/yfw/rule.json",
-			DefaultAccept: true,
-		},
+		Queue: queue.DefaultConfig(),
+		Web:   webserver.DefaultConfig(),
+		Cmd:   cmdserver.DefaultConfig(),
+		Rule:  rtable.DefaultConfig(),
 	}
 }
 
 func Init(configPath string) (err error) {
-	// 确保目录存在
-	if err = os.MkdirAll(path.Dir(configPath), 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-	// 打开文件
-	file, err = os.OpenFile(configPath, os.O_RDWR|os.O_CREATE, 0644)
+	lf, err = flock.Open(configPath)
 	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
+		return err
 	}
-	// 尝试独占锁（非阻塞）
-	if err = unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		_ = file.Close()
-		return fmt.Errorf("failed to acquire exclusive lock: %w", err)
-	}
-	// 重置文件指针
-	if _, err = file.Seek(0, 0); err != nil {
-		return fmt.Errorf("failed to seek file: %w", err)
-	}
-	info, err := file.Stat()
-	if err != nil {
-		return fmt.Errorf("failed to get file stat: %w", err)
-	}
-	content = make([]byte, info.Size())
-	if _, err = file.Read(content); err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-	return nil
+	content, err = lf.Read()
+	return err
 }
 
 func Read() []byte {
@@ -108,32 +78,16 @@ func Save(buf []byte) error {
 	defer mutex.Unlock()
 	//
 	var cfg Config
-	// 验证
 	if err := yaml.Unmarshal(buf, &cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-	if _, err := file.Seek(0, 0); err != nil {
-		return fmt.Errorf("failed to seek file: %w", err)
+	if err := lf.Write(buf); err != nil {
+		return err
 	}
-	if err := file.Truncate(0); err != nil {
-		return fmt.Errorf("failed to truncate file: %w", err)
-	}
-	if _, err := file.Write(buf); err != nil {
-		return fmt.Errorf("failed to write string to file: %w", err)
-	}
-	if err := file.Sync(); err != nil {
-		return fmt.Errorf("failed to sync file: %w", err)
-	}
+	content = buf
 	return nil
 }
 
 func Close() error {
-	var errs []error
-	if err := unix.Flock(int(file.Fd()), unix.LOCK_UN); err != nil {
-		errs = append(errs, fmt.Errorf("failed to unlock file: %w", err))
-	}
-	if err := file.Close(); err != nil {
-		errs = append(errs, fmt.Errorf("failed to close file: %w", err))
-	}
-	return errors.Join(errs...)
+	return lf.Close()
 }

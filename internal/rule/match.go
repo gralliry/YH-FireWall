@@ -1,12 +1,13 @@
 package rule
 
 import (
-	"github.com/google/gopacket/layers"
 	"net"
+
+	"github.com/google/gopacket/layers"
 )
 
 func matchIPNet(nets []net.IPNet, n net.IP) bool {
-	if nets == nil || len(nets) == 0 {
+	if len(nets) == 0 {
 		return true
 	}
 	for _, ipnet := range nets {
@@ -18,7 +19,7 @@ func matchIPNet(nets []net.IPNet, n net.IP) bool {
 }
 
 func matchPort(ports [][2]uint16, port uint16) bool {
-	if ports == nil || len(ports) == 0 {
+	if len(ports) == 0 {
 		return true
 	}
 	for _, pair := range ports {

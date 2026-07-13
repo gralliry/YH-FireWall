@@ -3,19 +3,18 @@ package cmdserver
 import (
 	"YH-FireWall/internal/rule"
 	"encoding/json"
+
 	"github.com/spf13/cobra"
 )
 
 type Handler interface {
 	Version() string
 
-	Stop() error
-
 	AppendRule(ro *rule.Option) (string, error)
 	UpdateRule(id string, ro *rule.Option) error
 	DeleteRule(id string) error
-	GetRule(id string) *rule.Config
-	GetRules() []rule.Config
+	SearchRule(id string) *rule.Info
+	SearchRules() []rule.Info
 	EnableRule(id string, enable bool) bool
 
 	GetConfig() string
@@ -43,23 +42,6 @@ yfw start
 `,
 	}
 	cmdRoot.AddCommand(cmdStart)
-	//  stop
-	cmdStop := &cobra.Command{
-		Use:   "stop",
-		Short: "Stop the YH Firewall service",
-		Long:  "Stop the running YH Firewall service gracefully.",
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := handler.Stop(); err != nil {
-				cmd.Println("YFW has tried to stop but error occurred. Use status to check the status")
-			} else {
-				cmd.Println("YFW Stopped")
-			}
-		},
-		Example: `
-yfw stop
-`,
-	}
-	cmdRoot.AddCommand(cmdStop)
 	//  status
 	cmdStatus := &cobra.Command{
 		Use:   "status",
@@ -97,12 +79,12 @@ yfw rule disable RULE_ID
 		Long:    "List all firewall rules if no argument provided, or display a specific rule by ID.",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
-				rules := handler.GetRules()
+				rules := handler.SearchRules()
 				for _, r := range rules {
 					cmd.Print(r.String())
 				}
 			} else {
-				r := handler.GetRule(args[0])
+				r := handler.SearchRule(args[0])
 				if r == nil {
 					cmd.PrintErrln("No such rule")
 				} else {

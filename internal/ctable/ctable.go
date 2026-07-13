@@ -1,45 +1,68 @@
 package ctable
 
 import (
-	"YH-FireWall/internal/connection"
 	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/go-co-op/gocron/v2"
 )
 
 var (
-	table     map[string]*connection.Connection
-	namespace map[string]*connection.Connection
+	table     map[string]*Connection
+	namespace map[string]*Connection
+	
 	mutex     sync.RWMutex
+	scheduler gocron.Scheduler
 )
 
 func Start(ctx context.Context) error {
-	table = make(map[string]*connection.Connection)
-	namespace = make(map[string]*connection.Connection)
-	go clean(ctx)
+	table = make(map[string]*Connection)
+	namespace = make(map[string]*Connection)
+	clean()
+	s, err := gocron.NewScheduler()
+	if err != nil {
+		return err
+	}
+	_, err = s.NewJob(
+		gocron.DurationJob(time.Minute),
+		gocron.NewTask(clean),
+	)
+	if err != nil {
+		return err
+	}
+	s.Start()
+	scheduler = s
+	go func() {
+		<-ctx.Done()
+		s.Shutdown()
+	}()
 	return nil
 }
 
 func Close() error {
+	if scheduler != nil {
+		return scheduler.Shutdown()
+	}
 	return nil
 }
 
-func GetAll() []connection.Config {
+func Infos() []Info {
 	mutex.Lock()
 	defer mutex.Unlock()
 	// push by process
 	pushByProcess()
 	// Step 1: 提取所有连接（values） // Distinct 跳过重复的连接
-	connMap := make(map[string]*connection.Connection)
+	connMap := make(map[string]*Connection)
 	for _, v := range table {
 		connMap[v.Id()] = v
 	}
 	// Distinct 跳过重复的连接
-	configList := make([]connection.Config, 0)
+	configList := make([]Info, 0)
 	for _, conn := range connMap {
-		if conn.Closed() {
+		if conn.Expired() {
 			continue
 		}
 		configList = append(configList, *conn.Unparse())
@@ -63,27 +86,14 @@ func Remove(id string) error {
 	return nil
 }
 
-// 自动清理过期连接
-func clean(ctx context.Context) {
-	for {
-		// 先执行清理逻辑（立即执行一次）
-		mutex.Lock()
-		count := 0
-		for id, conn := range namespace {
-			if conn.Expired() {
-				delete(namespace, id)
-				delete(table, conn.LKey())
-				delete(table, conn.RKey())
-				count += 1
-			}
-		}
-		mutex.Unlock()
-		// 日志输出
-		//log.Printf("clean %d expired connections", count)
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Minute):
+func clean() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	for id, conn := range namespace {
+		if conn.Expired() {
+			delete(namespace, id)
+			delete(table, conn.LKey())
+			delete(table, conn.RKey())
 		}
 	}
 }

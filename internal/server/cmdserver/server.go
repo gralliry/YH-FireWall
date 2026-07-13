@@ -5,53 +5,76 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/google/shlex"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
+	"sync"
+
+	"github.com/google/shlex"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
-	listener  net.Listener
-	isRunning bool
+	mutex sync.RWMutex
+
+	listener net.Listener
+	handler  Handler
+
+	initialized bool
+	running     bool
 )
 
-type Config struct {
-	Enable     bool   `json:"enable"`
-	SocketPath string `json:"socket_path"`
-}
+func Start(h Handler, config *Config) error {
+	mutex.Lock()
+	defer mutex.Unlock()
 
-func Start(h Handler, config Config) (err error) {
+	if !config.Enable {
+		initialized = false
+		return nil
+	}
 	// 删除残留的 cmdserver 文件
 	_ = os.Remove(config.SocketPath)
 	// 监听 Unix 域套接字
+	var err error
 	listener, err = net.Listen("unix", config.SocketPath)
 	if err != nil {
 		return fmt.Errorf("failed to listen on socket: %w", err)
 	}
-	// 启动监听
-	go acceptConn(h)
 	//
-	isRunning = true
+	handler = h
+	//
+	initialized = true
+	running = true
+	// 启动监听
+	go acceptConn()
 	return nil
 }
 
 func Close() error {
-	if !isRunning {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if !initialized {
+		return nil
+	}
+	if !running {
 		return fmt.Errorf("cmdserver is not running")
 	}
+	running = false
 	return listener.Close()
 }
 
-func IsRunning() bool {
-	return isRunning
+func Running() bool {
+	mutex.RLock()
+	defer mutex.RUnlock()
+
+	return initialized && running
 }
 
-func acceptConn(handler Handler) {
+func acceptConn() {
 	for {
 		conn, err := listener.Accept()
 		if err == nil {
-			go handleConn(conn, handler)
+			go handleConn(conn)
 		} else if errors.Is(err, net.ErrClosed) {
 			break
 		} else {
@@ -63,7 +86,7 @@ func acceptConn(handler Handler) {
 	}
 }
 
-func handleConn(conn net.Conn, handler Handler) {
+func handleConn(conn net.Conn) {
 	defer func() { _ = conn.Close() }()
 
 	// 解析并执行命令
