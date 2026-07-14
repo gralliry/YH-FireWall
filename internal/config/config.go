@@ -19,10 +19,11 @@ var (
 )
 
 type Config struct {
-	Queue *queue.Config     `json:"queue"`
-	Web   *webserver.Config `json:"web"`
-	Cmd   *cmdserver.Config `json:"cmd"`
-	Rule  *rtable.Config    `json:"rule"`
+	Version string            `json:"version"`
+	Queue   *queue.Config     `json:"queue"`
+	Web     *webserver.Config `json:"web"`
+	Cmd     *cmdserver.Config `json:"cmd"`
+	Rule    *rtable.Config    `json:"rule"`
 }
 
 func (c *Config) Read(buf []byte) error {

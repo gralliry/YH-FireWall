@@ -1,14 +1,14 @@
 package ctable
 
 import (
+	"YH-FireWall/internal/model/connection"
 	"YH-FireWall/internal/model/flow"
+	"YH-FireWall/internal/pkg/triplemap"
 	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/robfig/cron/v3"
 )
 
 var (
@@ -16,19 +16,16 @@ var (
 	cancel context.CancelFunc
 	mutex  sync.RWMutex
 
-	table     map[string]*Connection
-	namespace map[string]*Connection
-	channel   chan *flow.Flow
+	table *triplemap.Map[string, *connection.Connection]
 
-	scheduler *cron.Cron
+	channel chan *flow.Flow
 )
 
 func Start() error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	table = make(map[string]*Connection)
-	namespace = make(map[string]*Connection)
+	table = triplemap.New[string, *connection.Connection]()
 
 	channel = make(chan *flow.Flow, 1024)
 
@@ -41,24 +38,21 @@ func Start() error {
 }
 
 func Close() error {
-	if scheduler != nil {
-		<-scheduler.Stop().Done()
-	}
 	return nil
 }
 
-func Infos() []Info {
+func Infos() []connection.Info {
 	mutex.Lock()
 	defer mutex.Unlock()
 	// push by process
 	pushByProcess()
 	// Step 1: 提取所有连接（values） // Distinct 跳过重复的连接
-	connMap := make(map[string]*Connection)
+	connMap := make(map[string]*connection.Connection)
 	for _, v := range table {
 		connMap[v.Id()] = v
 	}
 	// Distinct 跳过重复的连接
-	configList := make([]Info, 0)
+	configList := make([]connection.Info, 0)
 	for _, conn := range connMap {
 		if conn.Expired() {
 			continue
@@ -71,7 +65,7 @@ func Infos() []Info {
 func Remove(id string) error {
 	mutex.Lock()
 	defer mutex.Unlock()
-	conn, exists := namespace[id]
+	conn, exists := table.Get(id)
 	if !exists {
 		return errors.New("connection not found")
 	}
@@ -133,7 +127,7 @@ func handle(ctx context.Context) {
 				delete(namespace, conn.Id())
 			}
 			// 添加连接 // 获取方向
-			conn = New(flow)
+			conn = connection.New(flow)
 			// 写入表
 			table[lkey] = conn
 			table[rkey] = conn

@@ -1,14 +1,17 @@
-package flock
+package lfile
 
 import (
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/gofrs/flock"
 )
 
 type LockedFile struct {
 	file *os.File
+	lock *flock.Flock
 }
 
 func Open(p string) (*LockedFile, error) {
@@ -19,11 +22,12 @@ func Open(p string) (*LockedFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	if err := Lock(f.Fd()); err != nil {
+	l := flock.New(p)
+	if err := l.Lock(); err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("failed to acquire lock: %w", err)
 	}
-	return &LockedFile{file: f}, nil
+	return &LockedFile{file: f, lock: l}, nil
 }
 
 func (lf *LockedFile) Read() ([]byte, error) {
@@ -59,15 +63,11 @@ func (lf *LockedFile) Write(buf []byte) error {
 
 func (lf *LockedFile) Close() error {
 	var errs []error
-	if err := Unlock(lf.file.Fd()); err != nil {
+	if err := lf.lock.Unlock(); err != nil {
 		errs = append(errs, fmt.Errorf("failed to unlock: %w", err))
 	}
 	if err := lf.file.Close(); err != nil {
 		errs = append(errs, fmt.Errorf("failed to close: %w", err))
 	}
 	return errors.Join(errs...)
-}
-
-func (lf *LockedFile) Fd() uintptr {
-	return lf.file.Fd()
 }

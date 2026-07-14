@@ -14,18 +14,15 @@ func Push(flow *flow.Flow) bool {
 	mutex.Lock()
 	defer mutex.Unlock()
 	// 添加连接键
-	lkey := flow.LKey()
-	rkey := flow.RKey()
+	key := flow.Key()
 	//
-	if conn, exists := table[lkey]; exists {
+	if conn, exists := table.Get(key); exists {
 		// 检测连接状态
 		isClosed, isExpired := conn.Closed(), conn.Expired()
 		switch {
 		case isClosed && isExpired:
 			// 如果被关闭 且 已过期
-			delete(table, lkey)
-			delete(table, rkey)
-			delete(namespace, conn.Id())
+			table.Del(key)
 			return true
 		case isClosed && !isExpired:
 			// 表示该连接任然未过期
@@ -37,11 +34,9 @@ func Push(flow *flow.Flow) bool {
 		}
 	} else {
 		// 添加连接 // 获取方向
-		conn = New(flow)
+		connect := conn.New(flow)
 		// 写入表
-		table[lkey] = conn
-		table[rkey] = conn
-		namespace[conn.Id()] = conn
+		table.Set(connect, connect.LKey(), connect.RKey(), connect.Id())
 		//
 		return true
 	}

@@ -2,7 +2,7 @@ package queue
 
 import (
 	"YH-FireWall/internal/ctable"
-	"YH-FireWall/internal/flow"
+	"YH-FireWall/internal/model/flow"
 	"YH-FireWall/internal/rtable"
 	"log"
 

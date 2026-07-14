@@ -1,8 +1,8 @@
 package webserver
 
 import (
-	"YH-FireWall/internal/ctable"
-	"YH-FireWall/internal/itable"
+	"YH-FireWall/internal/model/conn"
+	"YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/rule"
 )
 
@@ -12,12 +12,13 @@ type Handler interface {
 	DeleteRule(id string) error
 	SearchRules() []rule.Info
 	EnableRule(id string, enable bool) bool
+
 	GetConfig() string
 	SetConfig(raw string) error
 
-	GetConnections() []ctable.Info
+	GetConnections() []conn.Info
 	CloseConnection(id string) error
 
-	GetInterfaces() []itable.Info
+	GetInterfaces() []itf.Itf
 	GetProtocols() []string
 }

@@ -1,7 +1,7 @@
 package rule
 
 import (
-	"YH-FireWall/internal/flow"
+	"YH-FireWall/internal/model/flow"
 )
 
 func (r *Rule) Match(f *flow.Flow) bool {
@@ -30,16 +30,16 @@ func (r *Rule) Match(f *flow.Flow) bool {
 		return false
 	}
 	// 匹配 端口（如果这个协议有端口）
-	if r.srcPorts != nil || r.dstPorts != nil {
+	if r.srcPortRanges != nil || r.dstPortRanges != nil {
 		if !f.HasPort {
 			return false
 		}
 		// 源端口
-		if r.srcPorts != nil && !r.srcPorts.Contains(f.SrcPort) {
+		if r.srcPortRanges != nil && !r.srcPortRanges.Contains(f.SrcPort) {
 			return false
 		}
 		// 目标端口
-		if r.dstPorts != nil && !r.dstPorts.Contains(f.DstPort) {
+		if r.dstPortRanges != nil && !r.dstPortRanges.Contains(f.DstPort) {
 			return false
 		}
 	}

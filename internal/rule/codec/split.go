@@ -1,4 +1,4 @@
-package group
+package codec
 
 import (
 	"slices"
@@ -9,7 +9,7 @@ const StandardSplitter = ","
 
 var splitters = []rune{',', '\n', '\r', ';', '\t', ' '}
 
-func split(raw string) []string {
+func Split(raw string) []string {
 	return strings.FieldsFunc(raw, func(r rune) bool {
 		return slices.Contains(splitters, r)
 	})

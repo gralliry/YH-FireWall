@@ -1,58 +1,66 @@
 package rule
 
 import (
-	"YH-FireWall/internal/pkg/sid"
+	"YH-FireWall/internal/rule/group"
+	"net/netip"
+
+	"github.com/google/gopacket/layers"
+	"github.com/samber/lo"
 )
 
 type Option struct {
-	Group    *string `json:"group"`
-	Comment  *string `json:"comment"`
-	SrcNet   *string `json:"srcNet"`
-	SrcPort  *string `json:"srcPort"`
-	TarNet   *string `json:"tarNet"`
-	TarPort  *string `json:"tarPort"`
-	InDev    *string `json:"inDev"`
-	OutDev   *string `json:"outDev"`
-	Protocol *string `json:"protocol"`
-	Accept   *bool   `json:"accept"`
-	Priority *int    `json:"priority"`
-	Enable   *bool   `json:"enable"`
+	Group         *string
+	Comment       *string
+	SrcPrefixs    []netip.Prefix
+	DstPrefixs    []netip.Prefix
+	SrcPortRanges [][2]uint16
+	DstPortRanges [][2]uint16
+	InDevs        []string
+	OutDevs       []string
+	Protocols     []layers.IPProtocol
+	Accept        *bool
+	Priority      *int
+	Enable        *bool
 }
 
-func (o *Option) Build() *Info {
-	c := &Info{Id: sid.New(8)}
+func (r *Rule) Update(o *Option, devMap map[string]uint32) error {
 	if o.Group != nil {
-		c.Group = *o.Group
+		r.group = *o.Group
 	}
 	if o.Comment != nil {
-		c.Comment = *o.Comment
-	}
-	if o.SrcNet != nil {
-		c.SrcNet = *o.SrcNet
-	}
-	if o.SrcPort != nil {
-		c.SrcPort = *o.SrcPort
-	}
-	if o.TarNet != nil {
-		c.TarNet = *o.TarNet
-	}
-	if o.TarPort != nil {
-		c.TarPort = *o.TarPort
-	}
-	if o.InDev != nil {
-		c.InDev = *o.InDev
-	}
-	if o.OutDev != nil {
-		c.OutDev = *o.OutDev
-	}
-	if o.Protocol != nil {
-		c.Protocol = *o.Protocol
+		r.comment = *o.Comment
 	}
 	if o.Accept != nil {
-		c.Accept = *o.Accept
+		r.accept = *o.Accept
+	}
+	if o.Priority != nil {
+		r.priority = *o.Priority
 	}
 	if o.Enable != nil {
-		c.Enable = *o.Enable
+		r.enable = *o.Enable
 	}
-	return c
+	if o.SrcPrefixs != nil {
+		r.srcPrefixs = group.NewGroup[netip.Prefix, netip.Addr](o.SrcPrefixs)
+	}
+	if o.SrcPortRanges != nil {
+		r.srcPortRanges = group.NewRange(o.SrcPortRanges)
+	}
+	if o.DstPrefixs != nil {
+		r.dstPrefixs = group.NewGroup[netip.Prefix, netip.Addr](o.DstPrefixs)
+	}
+	if o.DstPortRanges != nil {
+		r.dstPortRanges = group.NewRange(o.DstPortRanges)
+	}
+	if o.InDevs != nil {
+		list := lo.Map(o.InDevs, func(s string, _ int) uint32 { return devMap[s] })
+		r.inDevs = group.NewSet(list)
+	}
+	if o.OutDevs != nil {
+		list := lo.Map(o.OutDevs, func(s string, _ int) uint32 { return devMap[s] })
+		r.outDevs = group.NewSet(list)
+	}
+	if o.Protocols != nil {
+		r.protocols = group.NewSet(o.Protocols)
+	}
+	return nil
 }

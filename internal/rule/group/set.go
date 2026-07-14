@@ -4,33 +4,30 @@ import (
 	"slices"
 )
 
-type Set[T comparable] struct {
-	raw []T
-	s   []T
-	m   map[T]struct{}
+type Set[V comparable] struct {
+	raw []V
+	s   []V
+	m   map[V]struct{}
 }
 
-// New creates a set containing the provided values (duplicates removed).
-// For string the threshold is 8; for all other types it is 32.
-func New[T comparable](vals []T) *Set[T] {
-	raw := slices.Clone(vals)
-	m := make(map[T]struct{}, len(raw))
-	for _, v := range raw {
-		m[v] = struct{}{}
+func NewSet[V comparable](devs []V) *Set[V] {
+	raw := slices.Clone(devs)
+	m := make(map[V]struct{}, len(devs))
+	for _, dev := range devs {
+		m[dev] = struct{}{}
 	}
-	if len(m) <= Threshold[T]() {
-		out := make([]T, 0, len(m))
+	if len(devs) <= 32 {
+		s := make([]V, 0, len(devs))
 		for v := range m {
-			out = append(out, v)
+			s = append(s, v)
 		}
-		return &Set[T]{s: out}
+		return &Set[V]{raw: raw, s: s}
 	} else {
-		return &Set[T]{m: m}
+		return &Set[V]{raw: raw, m: m}
 	}
 }
 
-// Contains reports whether v is in the set.
-func (s *Set[T]) Contains(v T) bool {
+func (s *Set[V]) Contains(v V) bool {
 	if s.s != nil {
 		return slices.Contains(s.s, v)
 	} else {
@@ -39,18 +36,6 @@ func (s *Set[T]) Contains(v T) bool {
 	}
 }
 
-// String implements fmt.Stringer.
-func (s *Set[T]) Raw() []T {
-	return s.raw
-}
-
-// thresholdFor returns the slice-vs-map cutoff for the element type.
-func Threshold[T comparable]() int {
-	var zero T
-	switch any(zero).(type) {
-	case string:
-		return 8
-	default:
-		return 32
-	}
+func (s *Set[V]) Raw() []V {
+	return slices.Clone(s.raw)
 }

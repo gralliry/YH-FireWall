@@ -4,6 +4,8 @@ import (
 	"YH-FireWall/internal/config"
 	"YH-FireWall/internal/ctable"
 	"YH-FireWall/internal/itable"
+	"YH-FireWall/internal/model/conn"
+	"YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/rtable"
 	"YH-FireWall/internal/rule"
 )
@@ -41,7 +43,7 @@ func (h *Handler) SetConfig(raw string) error {
 }
 
 // 连接模块
-func (h *Handler) GetConnections() []ctable.Info {
+func (h *Handler) GetConnections() []conn.Info {
 	return ctable.Infos()
 }
 
@@ -50,7 +52,7 @@ func (h *Handler) CloseConnection(id string) error {
 }
 
 // 接口模块
-func (h *Handler) GetInterfaces() []itable.Info {
+func (h *Handler) GetInterfaces() []itf.Itf {
 	return itable.Infos()
 }
 
