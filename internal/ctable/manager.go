@@ -58,7 +58,7 @@ func (m *Manager) Remove(id string) error {
 	return nil
 }
 
-func (m *Manager) Infos() []*conn.Info {
+func (m *Manager) List() []*conn.Info {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	// push by process
@@ -74,6 +74,10 @@ func (m *Manager) Infos() []*conn.Info {
 		return c.Info()
 	})
 	return infoList
+}
+
+func (m *Manager) Match(f *flow.Flow) bool {
+	return false
 }
 
 func (m *Manager) clean() {

@@ -20,20 +20,20 @@ var staticFS embed.FS
 type Handler interface {
 	Version() string
 	//
-	AppendRule(ro *rule.Option) (string, error)
-	UpdateRule(id string, ro *rule.Option) error
+	CreateRule(ro *rule.Option) (string, error)
+	UpdateRule(ro *rule.Option) error
 	DeleteRule(id string) error
 	SearchRule(id string) *rule.Option
-	ListRules() []*rule.Option
 	EnableRule(id string, enable bool) bool
+	ListRules() []*rule.Option
 	//
-	GetConfig() string
+	GetConfig() (string, error)
 	SetConfig(data string) error
 	//
 	CloseConnection(id string) error
-	ListConnections() []conn.Info
+	ListConnections() []*conn.Info
 	//
-	ListInterfaces() []itf.Itf
+	ListInterfaces() []*itf.Itf
 	//
 	ListProtocols() []string
 }
@@ -79,7 +79,7 @@ func newApp(config Config, handler Handler) *fiber.App {
 		if err := c.BodyParser(option); err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
-		id, err := handler.AppendRule(option)
+		id, err := handler.CreateRule(option)
 		if err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
@@ -96,7 +96,8 @@ func newApp(config Config, handler Handler) *fiber.App {
 		if err := c.BodyParser(option); err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
-		if err := handler.UpdateRule(id, option); err != nil {
+		option.ID = id
+		if err := handler.UpdateRule(option); err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
 		return c.SendStatus(fiber.StatusOK)
@@ -116,7 +117,10 @@ func newApp(config Config, handler Handler) *fiber.App {
 
 	// 获取配置
 	api.Get("/config", func(c *fiber.Ctx) error {
-		data := handler.GetConfig()
+		data, err := handler.GetConfig()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
 		return c.SendString(data)
 	})
 

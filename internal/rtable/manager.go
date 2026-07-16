@@ -3,19 +3,19 @@ package rtable
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"YH-FireWall/internal/model/flow"
 	"YH-FireWall/internal/model/rule"
-	"YH-FireWall/internal/pkg/bimap"
 	"YH-FireWall/internal/pkg/funcs"
 	"YH-FireWall/internal/pkg/lfile"
 	"YH-FireWall/internal/pkg/skiplist"
-
-	"github.com/google/gopacket/layers"
 )
 
+type DevMap interface {
+	Name2Index(name string) (index uint32, exist bool)
+	Index2Name(index uint32) (name string, exist bool)
+}
 
 type Manager struct {
 	mutex  sync.RWMutex
@@ -23,12 +23,11 @@ type Manager struct {
 
 	rules *skiplist.SkipList[string, *rule.Rule]
 	file  *lfile.LockedFile
-
-	devMap *bimap.Map[uint32, string]
-	proMap *bimap.Map[layers, string]
+	// 设备调用映射
+	devMap DevMap
 }
 
-func New(config Config, devMap ) (*Manager, error) {
+func New(config Config, devMap DevMap) (*Manager, error) {
 	file, err := lfile.Open(config.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open rule file: %w", err)
@@ -53,7 +52,7 @@ func New(config Config, devMap ) (*Manager, error) {
 	})
 	for _, ro := range ros {
 		rr := rule.New(ro.ID)
-		if err := rr.Update(ro); err != nil {
+		if err := rr.Update(ro, devMap.Name2Index); err != nil {
 			continue
 		}
 		rules.Insert(ro.ID, rr)
@@ -62,10 +61,12 @@ func New(config Config, devMap ) (*Manager, error) {
 		config: config,
 		rules:  rules,
 		file:   file,
+
+		devMap: devMap,
 	}, nil
 }
 
-func (m *Manager) Close() error{
+func (m *Manager) Close() error {
 	return nil
 }
 
@@ -79,7 +80,7 @@ func (m *Manager) Create(ro *rule.Option) (string, error) {
 		return "", fmt.Errorf("rule %s already exists", ro.ID)
 	}
 	rr := rule.New(ro.ID)
-	if err := rr.Update(ro, Protocol2Name); err != nil {
+	if err := rr.Update(ro, m.devMap.Name2Index); err != nil {
 		return "", err
 	}
 	// 插入
@@ -94,7 +95,7 @@ func (m *Manager) Update(ro *rule.Option) error {
 	if !exists {
 		return fmt.Errorf("rule %s not exists", ro.ID)
 	}
-	if err := rr.Update(ro, Protocol2Name); err != nil {
+	if err := rr.Update(ro, m.devMap.Name2Index); err != nil {
 		return err
 	}
 	return nil
@@ -118,19 +119,19 @@ func (m *Manager) Search(id string) *rule.Option {
 	if !exists {
 		return nil
 	}
-	return rr.Option(Protocol2Name)
+	return rr.Option(m.devMap.Index2Name)
 }
 
-func (m *Manager) Select() []*rule.Option {
+func (m *Manager) List() []*rule.Option {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	return m.select_()
+	return m.list()
 }
 
-func (m *Manager) select_() []*rule.Option {
+func (m *Manager) list() []*rule.Option {
 	rrs := m.rules.Values()
 	return funcs.Transform(rrs, func(rr *rule.Rule) *rule.Option {
-		return rr.Option(Protocol2Name)
+		return rr.Option(m.devMap.Index2Name)
 	})
 }
 

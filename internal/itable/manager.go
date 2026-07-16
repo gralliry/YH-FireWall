@@ -3,6 +3,7 @@ package itable
 import (
 	"YH-FireWall/internal/model/itf"
 	"net"
+	"slices"
 )
 
 type Manager struct {
@@ -12,7 +13,7 @@ type Manager struct {
 	index2name map[uint32]string
 }
 
-func NewTable() (*Manager, error) {
+func New() (*Manager, error) {
 	// 获取网络接口
 	sItfs, err := net.Interfaces()
 	if err != nil {
@@ -36,6 +37,11 @@ func NewTable() (*Manager, error) {
 		name2index: name2index,
 		index2name: index2name,
 	}, nil
+}
+
+func (t *Manager) List() []*itf.Itf {
+	// todo 这里有深拷贝问题
+	return slices.Clone(t.interfaces)
 }
 
 func (t *Manager) Name2Index(name string) (uint32, bool) {

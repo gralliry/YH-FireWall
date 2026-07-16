@@ -3,7 +3,6 @@ package rule
 import (
 	"YH-FireWall/internal/model/rule/codec"
 	"YH-FireWall/internal/pkg/container"
-	"YH-FireWall/internal/pkg/funcs"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -80,7 +79,7 @@ func (o *Option) String() string {
 
 // Option 以 codec 字符串形式返回当前规则的完整快照。
 // devMap 和 proMap 用于将内部数值映射为可读名称。
-func (r *Rule) Option(devMap map[uint32]string) *Option {
+func (r *Rule) Option(devMap codec.DevIndex2Name) *Option {
 	return &Option{
 		ID:            r.id,
 		Group:         new(r.group),
@@ -92,13 +91,13 @@ func (r *Rule) Option(devMap map[uint32]string) *Option {
 		DstPrefixs:    new(codec.StringifyPrefix(r.dstPrefixs.Raw())),
 		SrcPortRanges: new(codec.StringifyPort(r.srcPortRanges.Raw())),
 		DstPortRanges: new(codec.StringifyPort(r.dstPortRanges.Raw())),
-		InDevs:        new(codec.StringifyDev(funcs.Collect(r.inDevs.Raw(), devMap))),
-		OutDevs:       new(codec.StringifyDev(funcs.Collect(r.outDevs.Raw(), devMap))),
+		InDevs:        new(codec.StringifyDev(r.inDevs.Raw(), devMap)),
+		OutDevs:       new(codec.StringifyDev(r.outDevs.Raw(), devMap)),
 		Protocols:     new(codec.StringifyProtocol(r.protocols.Raw())),
 	}
 }
 
-func (r *Rule) Update(o *Option, devMap map[string]uint32) error {
+func (r *Rule) Update(o *Option, devMap codec.DevName2Index) error {
 	// Phase 1: 解析所有 codec 字段，全部通过才进入 Phase 2
 	var (
 		srcPrefixs    []netip.Prefix
@@ -149,11 +148,11 @@ func (r *Rule) Update(o *Option, devMap map[string]uint32) error {
 		r.enable = *o.Enable
 	}
 	if o.InDevs != nil {
-		inDevs := codec.ParseDev(*o.InDevs)
+		inDevs := codec.ParseDev(*o.InDevs, devMap)
 		r.inDevs = container.NewSet(inDevs)
 	}
 	if o.OutDevs != nil {
-		outDevs := codec.ParseDev(*o.OutDevs)
+		outDevs := codec.ParseDev(*o.OutDevs, devMap)
 		r.outDevs = container.NewSet(outDevs)
 	}
 	if o.Protocols != nil {

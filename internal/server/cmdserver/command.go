@@ -16,14 +16,14 @@ func str(ss ...string) string {
 type Handler interface {
 	Version() string
 	//
-	AppendRule(ro *rule.Option) (string, error)
-	UpdateRule(id string, ro *rule.Option) error
+	CreateRule(ro *rule.Option) (string, error)
+	UpdateRule(ro *rule.Option) error
 	DeleteRule(id string) error
 	SearchRule(id string) *rule.Option
-	ListRules() []*rule.Option
 	EnableRule(id string, enable bool) bool
+	ListRules() []*rule.Option
 	//
-	GetConfig() string
+	GetConfig() (string, error)
 }
 
 func newCmd(handler Handler) *cobra.Command {
@@ -94,7 +94,7 @@ func newCmd(handler Handler) *cobra.Command {
 			if err := json.Unmarshal([]byte(args[0]), &ro); err != nil {
 				return fmt.Errorf("invalid config: %w", err)
 			}
-			if _, err := handler.AppendRule(&ro); err != nil {
+			if _, err := handler.CreateRule(&ro); err != nil {
 				return err
 			}
 			cmd.Println("Rule Appended")
@@ -141,7 +141,8 @@ func newCmd(handler Handler) *cobra.Command {
 			if err := json.Unmarshal([]byte(args[1]), &ro); err != nil {
 				return fmt.Errorf("invalid config: %w", err)
 			}
-			if err := handler.UpdateRule(args[0], &ro); err != nil {
+			ro.ID = args[0]
+			if err := handler.UpdateRule(&ro); err != nil {
 				return err
 			}
 			cmd.Println("Rule Updated")
@@ -196,7 +197,12 @@ func newCmd(handler Handler) *cobra.Command {
 		Long:    "Display the current configuration of the YH Firewall service.",
 		Example: str("yfw config"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Println(handler.GetConfig())
+			data, err := handler.GetConfig()
+			if err != nil {
+				// todo
+				return fmt.Errorf("Faild to l confgig")
+			}
+			cmd.Println(data)
 			return nil
 		},
 	}

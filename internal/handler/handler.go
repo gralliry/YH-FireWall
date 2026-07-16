@@ -3,6 +3,7 @@ package handler
 import (
 	"YH-FireWall/internal/config"
 	"YH-FireWall/internal/ctable"
+	"YH-FireWall/internal/itable"
 	"YH-FireWall/internal/queue"
 	"YH-FireWall/internal/rtable"
 	"YH-FireWall/internal/server/cmdserver"
@@ -17,6 +18,7 @@ type Handler struct {
 	configer *config.Manager
 	ruler    *rtable.Manager
 	conner   *ctable.Manager
+	itfer    *itable.Manager
 	queuer   *queue.NFQ
 	//
 	cmder *cmdserver.Server
@@ -37,8 +39,13 @@ func New(ctx context.Context, configPath string) (*Handler, error) {
 	}
 	// 加载配置
 	cfg := h.configer.Load()
+	// 初始化接口
+	h.itfer, err = itable.New()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load network interface: %w", err)
+	}
 	// 初始化规则管理器
-	h.ruler, err = rtable.New(cfg.Rule, nil)
+	h.ruler, err = rtable.New(cfg.Rule, h.itfer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load rule table: %w", err)
 	}
