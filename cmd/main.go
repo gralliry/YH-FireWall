@@ -1,7 +1,7 @@
 package main
 
 import (
-	"YH-FireWall/internal"
+	"YH-FireWall/internal/handler"
 	"bufio"
 	"context"
 	"flag"
@@ -30,16 +30,16 @@ func runCore() {
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP)
 	defer cancel()
 
-	if err := internal.Start(ctx, *configPath); err != nil {
-		log.Fatalf("Core service failed to start: %v", err)
+	h, err := handler.New(ctx, *configPath)
+	if err != nil {
+		log.Fatalf("Core service failed to start: %v\n", err)
 	} else {
 		log.Println("Core service started successfully")
 	}
 
 	<-ctx.Done()
 
-	log.Println()
-	if err := internal.Close(); err != nil {
+	if err := h.Close(); err != nil {
 		log.Printf("Core service failed to stop: %v", err)
 	} else {
 		log.Printf("Core service stopped successfully")
@@ -62,40 +62,17 @@ func runClient() {
 
 	// 非交互模式：直接发送参数并退出
 	args := flag.Args()
-	if len(args) > 0 {
-		cmd := strings.Join(args, " ") + "\n"
-		if _, err = server.WriteString(cmd); err != nil {
-			log.Fatal("Failed to send command:", err)
-		}
-		if err = server.Flush(); err != nil {
-			log.Fatal("Failed to send command:", err)
-		}
-		result, err := server.ReadString(0)
-		if err != nil {
-			log.Fatal("Failed to read result:", err)
-		}
-		fmt.Print(result)
-		return
-	}
 
-	// 交互模式
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("> ")
-		input, err := reader.ReadBytes('\n')
-		if err != nil {
-			log.Fatal("Failed to read command:", err)
-		}
-		if _, err = server.Write(input); err != nil {
-			log.Fatal("Failed to send command:", err)
-		}
-		if err = server.Flush(); err != nil {
-			log.Fatal("Failed to send command:", err)
-		}
-		result, err := server.ReadString(0)
-		if err != nil {
-			log.Fatal("Failed to read result:", err)
-		}
-		fmt.Print(result)
+	cmd := strings.Join(args, " ") + "\n"
+	if _, err = server.WriteString(cmd); err != nil {
+		log.Fatal("Failed to send command:", err)
 	}
+	if err = server.Flush(); err != nil {
+		log.Fatal("Failed to send command:", err)
+	}
+	result, err := server.ReadString(0)
+	if err != nil {
+		log.Fatal("Failed to read result:", err)
+	}
+	fmt.Print(result)
 }

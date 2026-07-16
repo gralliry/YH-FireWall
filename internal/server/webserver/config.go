@@ -5,6 +5,7 @@ type Config struct {
 	Address      string `json:"address"`
 	AuthUsername string `json:"auth_username"`
 	AuthPassword string `json:"auth_password"`
+	StaticDir    string `json:"static_dir"`
 	EnableCORS   bool   `json:"enable_cors"`
 }
 
@@ -14,6 +15,7 @@ func DefaultConfig() *Config {
 		Address:      ":8080",
 		AuthUsername: "admin",
 		AuthPassword: "admin",
+		StaticDir:    "",
 		EnableCORS:   true,
 	}
 }

@@ -2,136 +2,86 @@ package cmdserver
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"net"
 	"os"
-	"sync"
+	"strings"
+	"time"
 
 	"github.com/google/shlex"
-	log "github.com/sirupsen/logrus"
 )
 
-var (
-	mutex sync.RWMutex
-
-	listener net.Listener
+type Server struct {
 	handler  Handler
+	listener net.Listener
+}
 
-	initialized bool
-	running     bool
-)
-
-func Start(h Handler, config *Config) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
+func New(config Config, handler Handler) (*Server, error) {
+	server := &Server{}
 	if !config.Enable {
-		initialized = false
+		return server, nil
+	}
+	_ = os.Remove(config.SocketPath)
+	listener, err := net.Listen("unix", config.SocketPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen on socket: %w", err)
+	}
+	server.handler = handler
+	server.listener = listener
+	go server.acceptConn()
+	return server, nil
+}
+
+func (s *Server) Running() bool {
+	return s.listener != nil
+}
+
+func (s *Server) Close() error {
+	if s.listener == nil {
 		return nil
 	}
-	// 删除残留的 cmdserver 文件
-	_ = os.Remove(config.SocketPath)
-	// 监听 Unix 域套接字
-	var err error
-	listener, err = net.Listen("unix", config.SocketPath)
-	if err != nil {
-		return fmt.Errorf("failed to listen on socket: %w", err)
+	if err := s.listener.Close(); err != nil {
+		return fmt.Errorf("failed to close cmd server: %w", err)
 	}
-	//
-	handler = h
-	//
-	initialized = true
-	running = true
-	// 启动监听
-	go acceptConn()
 	return nil
 }
 
-func Close() error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	if !initialized {
-		return nil
-	}
-	if !running {
-		return fmt.Errorf("cmdserver is not running")
-	}
-	running = false
-	return listener.Close()
-}
-
-func Running() bool {
-	mutex.RLock()
-	defer mutex.RUnlock()
-
-	return initialized && running
-}
-
-func acceptConn() {
+func (s *Server) acceptConn() {
+	retry := time.Second
 	for {
-		conn, err := listener.Accept()
+		conn, err := s.listener.Accept()
 		if err == nil {
-			go handleConn(conn)
+			go s.handleConn(conn)
+			retry = time.Second
 		} else if errors.Is(err, net.ErrClosed) {
 			break
 		} else {
-			log.Printf("cmdserver accept error: %v", err)
-			// 避免 Accept 持续失败导致忙等
-			// 使用简单的 sleep 退避
-			continue
+			time.Sleep(retry)
+			retry += time.Second
 		}
 	}
 }
 
-func handleConn(conn net.Conn) {
-	defer func() { _ = conn.Close() }()
+func (s *Server) handleConn(conn net.Conn) {
+	defer conn.Close()
 
-	// 解析并执行命令
-	cmder := newCommand(handler)
-	var outBuf, errBuf bytes.Buffer
-	cmder.SetOut(&outBuf)
-	cmder.SetErr(&errBuf)
-	//
-	client := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
-
-	for {
-		outBuf.Reset()
-		errBuf.Reset()
-		// 读取命令
-		command, err := client.ReadString('\n')
-		if err != nil {
-			return
-		}
-		// 解析命令
-		args, err := shlex.Split(command)
-		if err != nil {
-			errBuf.WriteString(err.Error())
-			_, _ = client.Write(errBuf.Bytes())
-			_ = client.WriteByte(0)
-			_ = client.Flush()
-			return
-		}
-		// todo 参数读取展示
-		log.Printf("Args(%d): %v", len(args), args)
-		// 设置命令参数
-		cmder.SetArgs(args)
-		if _, err = cmder.ExecuteC(); err != nil {
-			if _, err = client.Write(errBuf.Bytes()); err != nil {
-				return
-			}
-		} else {
-			if _, err = client.Write(outBuf.Bytes()); err != nil {
-				return
-			}
-		}
-		if err = client.WriteByte(0); err != nil {
-			return
-		}
-		if err = client.Flush(); err != nil {
-			return
-		}
+	reader := bufio.NewReader(conn)
+	command, err := reader.ReadString('\n')
+	if err != nil {
+		return
 	}
+
+	args, err := shlex.Split(strings.TrimSpace(command))
+	if err != nil {
+		conn.Write([]byte(err.Error()))
+		return
+	}
+
+	cmd := newCmd(s.handler)
+	cmd.SetOut(conn)
+	cmd.SetErr(conn)
+
+	cmd.SetArgs(args)
+	cmd.ExecuteC()
 }

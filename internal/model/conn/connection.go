@@ -5,12 +5,17 @@ import (
 	"YH-FireWall/internal/pkg/sid"
 	"fmt"
 	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/google/gopacket/layers"
 )
 
-type Connection struct {
+var pool = sync.Pool{
+	New: func() any { return new(Conn) },
+}
+
+type Conn struct {
 	// 连接id
 	id string
 
@@ -18,11 +23,11 @@ type Connection struct {
 	protocol layers.IPProtocol
 
 	localIP  netip.Addr
-    remoteIP netip.Addr
+	remoteIP netip.Addr
 
-    hasPort  bool
-    localPort uint16
-    remotePort uint16
+	hasPort    bool
+	localPort  uint16
+	remotePort uint16
 
 	direction flow.Direction
 
@@ -32,78 +37,66 @@ type Connection struct {
 	isClosed        bool
 }
 
-func New(f *flow.Flow) *Connection {
-	srcAddrPort := netip.AddrPortFrom(f.SrcIP, f.SrcPort)
-	dstAddrPort := netip.AddrPortFrom(f.DstIP, f.DstPort)
-	var lAddrPort, rAddrPort netip.AddrPort
-	direction := f.Direction()
-	switch direction {
+func New(f *flow.Flow) *Conn {
+	c := pool.Get().(*Conn)
+
+	c.direction = f.Direction()
+	switch c.direction {
 	case flow.Inbound:
-		lAddrPort = dstAddrPort
-		rAddrPort = srcAddrPort
+		c.localIP, c.localPort = f.DstIP, f.DstPort
+		c.remoteIP, c.remotePort = f.SrcIP, f.SrcPort
 	case flow.Outbound:
-		lAddrPort = srcAddrPort
-		rAddrPort = dstAddrPort
+		c.localIP, c.localPort = f.SrcIP, f.SrcPort
+		c.remoteIP, c.remotePort = f.DstIP, f.DstPort
 	default:
+		pool.Put(c)
 		return nil
-	} // Forward/Unknown 按需处理
-	return &Connection{
-		id: sid.New(8),
-
-		protocol:  f.Protocol,
-		lAddrPort: lAddrPort,
-		rAddrPort: rAddrPort,
-
-		direction: direction,
-
-		establishedTime: time.Now(),
-		lastActiveTime:  time.Now(),
-		isClosed:        false,
 	}
+	// 按需处理
+	c.id = sid.New(8)
+	c.hasPort = f.HasPort
+	//
+	c.establishedTime = time.Now()
+	c.lastActiveTime = time.Now()
+	c.isClosed = false
+	return c
 }
 
-func (c *Connection) Active() {
+func (c *Conn) Active() {
 	c.lastActiveTime = time.Now()
 }
 
 //const killcmd = "src %s and src port %d and dst %s and dst port %d"
 
-func (c *Connection) Close() error {
+func (c *Conn) Close() error {
+	c.lastActiveTime = time.Now()
 	c.isClosed = true
 	return nil
 }
 
-func (c *Connection) Closed() bool {
+func (c *Conn) Closed() bool {
 	return c.isClosed
 }
 
-func (c *Connection) Expired() bool {
+func (c *Conn) Expired() bool {
 	return time.Since(c.lastActiveTime) > time.Minute
 }
 
-func (c *Connection) Alive() bool {
-	return !c.isClosed && time.Since(c.lastActiveTime) < time.Minute
-}
-
-func (c *Connection) Info() *Info {
+func (c *Conn) Info() *Info {
 	return &Info{
 		Id: c.id,
 
 		// 连接信息
-		Protocol:  c.protocol,
-		LAddrPort: c.lAddrPort,
-		RAddrPort: c.rAddrPort,
+		Protocol: c.protocol,
 
 		// 网卡方向信息
-		Interface:
-		Direction:c.direction ,
 
 		// 状态
 		EstablishedTime: c.establishedTime.Unix(),
 	}
 }
 
-func (c *Connection) Id() string {
+func (c *Conn) ID() string {
 	return c.id
 }
 
@@ -111,10 +104,10 @@ func key(proto layers.IPProtocol, ip1 netip.Addr, port1 uint16, ip2 netip.Addr, 
 	return fmt.Sprintf("%s-%s-%d-%s-%d", proto, ip1, port1, ip2, port2)
 }
 
-func (c *Connection) LKey() string {
+func (c *Conn) LKey() string {
 	return key(c.protocol, c.localIP, c.localPort, c.remoteIP, c.remotePort)
 }
 
-func (c *Connection) RKey() string {
+func (c *Conn) RKey() string {
 	return key(c.protocol, c.remoteIP, c.remotePort, c.localIP, c.localPort)
 }

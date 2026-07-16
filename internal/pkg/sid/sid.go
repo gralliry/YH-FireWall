@@ -2,24 +2,29 @@ package sid
 
 import (
 	"crypto/rand"
-	"math/big"
-	"strings"
+	"unsafe"
 )
 
-// 自定义字符集
 const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
+const mask = 248 // floor(256/62)*62，保证均匀分布
+
+// New 生成 n 位随机字符串
 func New(n int) string {
-	var sb strings.Builder
-	length := big.NewInt(int64(len(alphabet)))
+	buf := make([]byte, n)
+	tmp := make([]byte, 32)
 
-	for i := 0; i < n; i++ {
-		idx, err := rand.Int(rand.Reader, length)
-		if err != nil {
-			panic(err)
+	for i := 0; i < n; {
+		_, _ = rand.Read(tmp)
+		for _, b := range tmp {
+			if i >= n {
+				break
+			}
+			if b < mask {
+				buf[i] = alphabet[b%62]
+				i++
+			}
 		}
-		sb.WriteByte(alphabet[idx.Int64()])
 	}
-
-	return sb.String()
+	return unsafe.String(unsafe.SliceData(buf), n)
 }

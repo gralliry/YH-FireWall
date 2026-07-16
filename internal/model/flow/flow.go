@@ -1,9 +1,10 @@
 package flow
 
 import (
-	"fmt"
 	"net/netip"
 
+	"github.com/florianl/go-nfqueue"
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 )
 
@@ -17,8 +18,6 @@ const (
 )
 
 // flow 不应该出现任何修改
-//
-//	不应该调用其他模块库
 type Flow struct {
 	// IP上协议
 	// 6: tcp,  17:  udp
@@ -38,8 +37,64 @@ type Flow struct {
 	OutDev uint32
 }
 
-func key(proto layers.IPProtocol, ip1 netip.Addr, port1 uint16, ip2 netip.Addr, port2 uint16) string {
-	return fmt.Sprintf("%s-%s-%d-%s-%d", proto, ip1, port1, ip2, port2)
+func New(a *nfqueue.Attribute) (*Flow, bool) {
+	// a 一定不为空
+	if a.Payload == nil {
+		return nil, false
+	}
+	payload := *a.Payload
+	if len(payload) == 0 {
+		return nil, false
+	}
+
+	// 解析到flow
+	f := pool.Get().(*Flow)
+	if a.InDev != nil {
+		f.InDev = *a.InDev
+	}
+	if a.OutDev != nil {
+		f.OutDev = *a.OutDev
+	}
+
+	// 判断 ip 协议
+	var packet gopacket.Packet
+	switch payload[0] >> 4 {
+	case 4:
+		packet = gopacket.NewPacket(payload, layers.LayerTypeIPv4, gopacket.DecodeOptions{
+			Lazy:   true,
+			NoCopy: true,
+		})
+		layer := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+		if !setIP(f, layer.SrcIP, layer.DstIP) {
+			return nil, false
+		}
+		f.Protocol = layer.Protocol
+	case 6:
+		packet = gopacket.NewPacket(payload, layers.LayerTypeIPv6, gopacket.DecodeOptions{
+			Lazy:   true,
+			NoCopy: true,
+		})
+		layer := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
+		if !setIP(f, layer.SrcIP, layer.DstIP) {
+			return nil, false
+		}
+		f.Protocol = layer.NextHeader
+	default:
+		return nil, false
+	}
+
+	// 判断传输层协议
+	var ok bool
+	f.SrcPort, f.DstPort, f.HasPort, ok = extractPort(packet, f.Protocol)
+	if !ok {
+		return nil, false
+	}
+
+	return f, true
+}
+
+func Release(f *Flow) {
+	pool.Put(f)
 }
 
 func (f *Flow) Key() string {

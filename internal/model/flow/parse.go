@@ -1,14 +1,20 @@
 package flow
 
 import (
+	"fmt"
 	"net"
 	"net/netip"
+	"sync"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 )
 
-func setIPs(f *Flow, src, dst net.IP) bool {
+var pool = sync.Pool{
+	New: func() any { return new(Flow) },
+}
+
+func setIP(f *Flow, src, dst net.IP) bool {
 	srcIP, ok1 := netip.AddrFromSlice(src)
 	dstIP, ok2 := netip.AddrFromSlice(dst)
 	if !ok1 || !ok2 {
@@ -20,54 +26,8 @@ func setIPs(f *Flow, src, dst net.IP) bool {
 	return true
 }
 
-func New(payload []byte, inDev, outDev *uint32) (*Flow, bool) {
-	if len(payload) == 0 {
-		return nil, false
-	}
-
-	var f Flow
-	if inDev != nil {
-		f.InDev = *inDev
-	}
-	if outDev != nil {
-		f.OutDev = *outDev
-	}
-
-	// 判断 ip 协议
-	var packet gopacket.Packet
-	switch payload[0] >> 4 {
-	case 4:
-		packet = gopacket.NewPacket(payload, layers.LayerTypeIPv4, gopacket.DecodeOptions{
-			Lazy:   true,
-			NoCopy: true,
-		})
-		layer := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
-		if !setIPs(&f, layer.SrcIP, layer.DstIP) {
-			return nil, false
-		}
-		f.Protocol = layer.Protocol
-	case 6:
-		packet = gopacket.NewPacket(payload, layers.LayerTypeIPv6, gopacket.DecodeOptions{
-			Lazy:   true,
-			NoCopy: true,
-		})
-		layer := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
-		if !setIPs(&f, layer.SrcIP, layer.DstIP) {
-			return nil, false
-		}
-		f.Protocol = layer.NextHeader
-	default:
-		return nil, false
-	}
-
-	// 判断传输层协议
-	var ok bool
-	f.SrcPort, f.DstPort, f.HasPort, ok = extractPort(packet, f.Protocol)
-	if !ok {
-		return nil, false
-	}
-
-	return &f, true
+func key(proto layers.IPProtocol, ip1 netip.Addr, port1 uint16, ip2 netip.Addr, port2 uint16) string {
+	return fmt.Sprintf("%s-%s-%d-%s-%d", proto, ip1, port1, ip2, port2)
 }
 
 func extractPort(packet gopacket.Packet, proto layers.IPProtocol) (uint16, uint16, bool, bool) {

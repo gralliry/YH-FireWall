@@ -22,3 +22,11 @@ func New(pc *process.Process) *Info {
 	info.Username, _ = pc.Username()
 	return &info
 }
+
+func NewByPID(pid int32) *Info {
+	pc, err := process.NewProcess(pid)
+	if err != nil {
+		return nil
+	}
+	return New(pc)
+}

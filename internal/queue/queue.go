@@ -11,66 +11,93 @@ import (
 	"github.com/mdlayher/netlink"
 )
 
-var (
+const cmdSet = `
+iptables -C INPUT   -j NFQUEUE --queue-num %[1]d --queue-bypass -m comment --comment "%[2]s" 2>/dev/null || iptables -I INPUT   -j NFQUEUE --queue-num %[1]d --queue-bypass -m comment --comment "%[2]s"
+iptables -C OUTPUT  -j NFQUEUE --queue-num %[1]d --queue-bypass -m comment --comment "%[2]s" 2>/dev/null || iptables -I OUTPUT  -j NFQUEUE --queue-num %[1]d --queue-bypass -m comment --comment "%[2]s"
+iptables -C FORWARD -j NFQUEUE --queue-num %[1]d --queue-bypass -m comment --comment "%[2]s" 2>/dev/null || iptables -I FORWARD -j NFQUEUE --queue-num %[1]d --queue-bypass -m comment --comment "%[2]s"
+`
+
+const cmdUnset = `
+iptables -D INPUT   -j NFQUEUE --queue-num %[1]d --queue-bypass -m comment --comment "%[2]s" 2>/dev/null || true
+iptables -D OUTPUT  -j NFQUEUE --queue-num %[1]d --queue-bypass -m comment --comment "%[2]s" 2>/dev/null || true
+iptables -D FORWARD -j NFQUEUE --queue-num %[1]d --queue-bypass -m comment --comment "%[2]s" 2>/dev/null || true
+`
+
+type NFQ struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	config Config
 	nfq    *nfqueue.Nfqueue
-)
+}
 
-const cmdSet = `
-sudo iptables -C INPUT   -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I INPUT   -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
-sudo iptables -C OUTPUT  -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I OUTPUT  -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
-sudo iptables -C FORWARD -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw" 2>/dev/null || sudo iptables -I FORWARD -j NFQUEUE --queue-num %[1]d -m comment --comment "yfw"
-`
+type HandleFunc func(*nfqueue.Attribute) (bool, error)
 
-const cmdUnset = `
-sudo iptables -L INPUT   --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}' | xargs -r sudo iptables -D INPUT
-sudo iptables -L OUTPUT  --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}' | xargs -r sudo iptables -D OUTPUT
-sudo iptables -L FORWARD --line-numbers | grep "NFQUEUE.*yfw" | awk '{print $1}' | xargs -r sudo iptables -D FORWARD
-`
-
-func Start(cfg Config) error {
-	ctx, cancel = context.WithCancel(context.Background())
-	config = cfg
-
+func New(cfg Config, handler HandleFunc) (*NFQ, error) {
 	var err error
-	nfq, err = nfqueue.Open(&nfqueue.Config{
-		NfQueue:      config.No,
+	nfq, err := nfqueue.Open(&nfqueue.Config{
+		NfQueue:      cfg.Num,
 		MaxPacketLen: 2048,
 		MaxQueueLen:  2048,
 		Copymode:     nfqueue.NfQnlCopyPacket,
 		WriteTimeout: 150 * time.Millisecond,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := nfq.SetOption(netlink.NoENOBUFS, true); err != nil {
-		return err
+		nfq.Close()
+		return nil, err
 	}
-	if err := nfq.RegisterWithErrorFunc(ctx, handleFunc, errorFunc); err != nil {
-		return err
+
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := nfq.RegisterWithErrorFunc(ctx, hookFunc(nfq, handler), errorFunc()); err != nil {
+		nfq.Close()
+		cancel()
+		return nil, err
 	}
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, config.No))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, cfg.Num, cfg.Name))
 	if err := cmd.Run(); err != nil {
-		return err
+		nfq.Close()
+		cancel()
+		return nil, err
 	}
-	return nil
+	return &NFQ{
+		ctx:    ctx,
+		cancel: cancel,
+		config: cfg,
+		nfq:    nfq,
+	}, nil
 }
 
-func Close() error {
+func (q *NFQ) Close() error {
 	var errs []error
-	cmd := exec.Command("bash", "-c", cmdUnset)
+	if err := q.nfq.Close(); err != nil {
+		errs = append(errs, err)
+	}
+	q.cancel()
+	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdUnset, q.config.Num, q.config.Name))
 	if err := cmd.Run(); err != nil {
 		errs = append(errs, err)
 	}
-	if nfq != nil {
-		if err := nfq.Close(); err != nil {
-			errs = append(errs, err)
+	return errors.Join(errs...)
+}
+
+func hookFunc(nfq *nfqueue.Nfqueue, handler HandleFunc) nfqueue.HookFunc {
+	return func(a nfqueue.Attribute) int {
+		if ok, err := handler(&a); err != nil {
+			return -1
+		} else if ok {
+			nfq.SetVerdict(*a.PacketID, nfqueue.NfAccept)
+			return 0
+		} else {
+			nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+			return 0
 		}
 	}
-	if cancel != nil {
-		cancel()
+}
+
+func errorFunc() nfqueue.ErrorFunc {
+	return func(err error) int {
+		return -1
 	}
-	return errors.Join(errs...)
 }

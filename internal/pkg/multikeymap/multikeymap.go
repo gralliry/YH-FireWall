@@ -61,6 +61,22 @@ func (m *Map[K, V]) Len() int {
 	return len(m.l)
 }
 
+func (m *Map[K, V]) Values() []V {
+	values := make([]V, 0, len(m.l))
+	for e := range m.l {
+		values = append(values, e.value)
+	}
+	return values
+}
+
+func (m *Map[K, V]) Filter(f func(V) bool) {
+	for e := range m.l {
+		if !f(e.value) {
+			m.unindex(e)
+		}
+	}
+}
+
 func (m *Map[K, V]) Range(f func(V)) {
 	for e := range m.l {
 		f(e.value)

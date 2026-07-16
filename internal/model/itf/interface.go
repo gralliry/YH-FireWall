@@ -6,7 +6,7 @@ import (
 )
 
 type Itf struct {
-	Index int            `json:"index"`
+	Index uint32         `json:"index"`
 	Name  string         `json:"name"`
 	MAC   string         `json:"mac"`
 	MTU   int            `json:"mtu"`
@@ -30,11 +30,15 @@ func New(i *net.Interface) *Itf {
 		prefixes = append(prefixes, netip.PrefixFrom(ip.Unmap(), ones))
 	}
 	return &Itf{
-		Index: i.Index,
+		Index: uint32(i.Index),
 		Name:  i.Name,
 		MAC:   i.HardwareAddr.String(),
 		MTU:   i.MTU,
 		Flags: i.Flags,
 		Addrs: prefixes,
 	}
+}
+
+func (i *Itf) String() string {
+	return ""
 }

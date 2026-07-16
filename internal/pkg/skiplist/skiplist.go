@@ -4,25 +4,23 @@ import "math/rand/v2"
 
 const maxLevel = 16
 
-type node[K comparable, V any] struct {
-	key   K
+type node[V any] struct {
 	value V
-	next  []*node[K, V]
+	next  []*node[V]
 }
 
 type SkipList[K comparable, V any] struct {
-	head    *node[K, V]
+	head    *node[V]
 	level   int
-	size    int
 	compare func(a, b V) int
-	keymap  map[K]*node[K, V]
+	keymap  map[K]*node[V]
 }
 
 func New[K comparable, V any](compare func(a, b V) int) *SkipList[K, V] {
 	return &SkipList[K, V]{
-		head:    &node[K, V]{next: make([]*node[K, V], maxLevel)},
+		head:    &node[V]{next: make([]*node[V], maxLevel)},
 		compare: compare,
-		keymap:  make(map[K]*node[K, V]),
+		keymap:  make(map[K]*node[V]),
 	}
 }
 
@@ -39,7 +37,7 @@ func (sl *SkipList[K, V]) Insert(key K, value V) {
 		sl.Delete(key)
 	}
 
-	update := make([]*node[K, V], maxLevel)
+	update := make([]*node[V], maxLevel)
 	cur := sl.head
 
 	for i := sl.level; i >= 0; i-- {
@@ -57,10 +55,9 @@ func (sl *SkipList[K, V]) Insert(key K, value V) {
 		sl.level = lv
 	}
 
-	newNode := &node[K, V]{
-		key:   key,
+	newNode := &node[V]{
 		value: value,
-		next:  make([]*node[K, V], lv+1),
+		next:  make([]*node[V], lv+1),
 	}
 
 	for i := 0; i <= lv; i++ {
@@ -69,7 +66,6 @@ func (sl *SkipList[K, V]) Insert(key K, value V) {
 	}
 
 	sl.keymap[key] = newNode
-	sl.size++
 }
 
 func (sl *SkipList[K, V]) Delete(key K) bool {
@@ -78,7 +74,7 @@ func (sl *SkipList[K, V]) Delete(key K) bool {
 		return false
 	}
 
-	update := make([]*node[K, V], maxLevel)
+	update := make([]*node[V], maxLevel)
 	cur := sl.head
 
 	for i := sl.level; i >= 0; i-- {
@@ -100,40 +96,48 @@ func (sl *SkipList[K, V]) Delete(key K) bool {
 	}
 
 	delete(sl.keymap, key)
-	sl.size--
 	return true
 }
 
 func (sl *SkipList[K, V]) Search(key K) (V, bool) {
-	node, ok := sl.keymap[key]
+	n, ok := sl.keymap[key]
 	if !ok {
 		var zero V
 		return zero, false
 	}
-	return node.value, true
+	return n.value, true
 }
 
-func (sl *SkipList[K, V]) First(f func(V) bool) (K, V, bool) {
+func (sl *SkipList[K, V]) First(f func(V) bool) (V, bool) {
 	cur := sl.head.next[0]
 	for cur != nil {
 		if f(cur.value) {
-			return cur.key, cur.value, true
+			return cur.value, true
 		}
 		cur = cur.next[0]
 	}
-	var zeroK K
-	var zeroV V
-	return zeroK, zeroV, false
+	var zero V
+	return zero, false
 }
 
-func (sl *SkipList[K, V]) Range(f func(key K, value V)) {
+func (sl *SkipList[K, V]) Range(f func(V)) {
 	cur := sl.head.next[0]
 	for cur != nil {
-		f(cur.key, cur.value)
+		f(cur.value)
 		cur = cur.next[0]
 	}
 }
 
+func (sl *SkipList[K, V]) Values() []V {
+	values := make([]V, 0, len(sl.keymap))
+	cur := sl.head.next[0]
+	for cur != nil {
+		values = append(values, cur.value)
+		cur = cur.next[0]
+	}
+	return values
+}
+
 func (sl *SkipList[K, V]) Len() int {
-	return sl.size
+	return len(sl.keymap)
 }

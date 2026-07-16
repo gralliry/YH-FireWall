@@ -10,19 +10,19 @@ import (
 	nprocess "github.com/shirou/gopsutil/v4/process"
 )
 
-func Push(flow *flow.Flow) bool {
-	mutex.Lock()
-	defer mutex.Unlock()
+func (m *Manager) Push(flow *flow.Flow) bool {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	// 添加连接键
 	key := flow.Key()
 	//
-	if conn, exists := table.Get(key); exists {
+	if conn, exists := m.table.Get(key); exists {
 		// 检测连接状态
 		isClosed, isExpired := conn.Closed(), conn.Expired()
 		switch {
 		case isClosed && isExpired:
 			// 如果被关闭 且 已过期
-			table.Del(key)
+			m.table.Del(key)
 			return true
 		case isClosed && !isExpired:
 			// 表示该连接任然未过期
@@ -59,10 +59,6 @@ func pushByProcess() {
 	}
 	// 获取网卡ip映射
 	for _, conn := range connectionList {
-		// 2: ipv4, 10: ipv6
-		if conn.Family != 2 && conn.Family != 10 {
-			continue
-		}
 		// 1: tcp, 2: udp
 		var protocol layers.IPProtocol
 		switch conn.Type {

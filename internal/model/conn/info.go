@@ -22,4 +22,7 @@ type Info struct {
 
 	// 建立时间
 	EstablishedTime int64 `json:"establishedTime"`
+
+	// 进程信息
+	Pid 
 }
