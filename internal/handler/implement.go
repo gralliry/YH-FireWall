@@ -39,6 +39,9 @@ func (h *Handler) CloseConnection(id string) error {
 func (h *Handler) GetConfig() string {
 	return h.configer.Read()
 }
+func (h *Handler) GetConfigPath() string {
+	return h.configer.Path()
+}
 func (h *Handler) SetConfig(raw string) error {
 	return h.configer.Write(raw)
 }

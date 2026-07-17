@@ -66,10 +66,16 @@ func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
 
 	server := bufio.NewReadWriter(
-		bufio.NewReader(conn), bufio.NewWriter(conn),
+		bufio.NewReader(conn),
+		bufio.NewWriter(conn),
 	)
+	defer server.Flush()
+	// 写入终止符
+	defer server.Write([]byte{0})
+
 	command, err := server.ReadString('\n')
 	if err != nil {
+		server.WriteString(err.Error())
 		return
 	}
 
@@ -80,12 +86,10 @@ func (s *Server) handleConn(conn net.Conn) {
 	}
 
 	cmd := newCmd(s.handler)
+	cmd.SetArgs(args)
 
 	cmd.SetOut(server)
 	cmd.SetErr(server)
 
-	cmd.SetArgs(args)
 	cmd.ExecuteC()
-	// 写入终止符
-	server.Write([]byte{0})
 }

@@ -55,8 +55,7 @@ func runClient() {
 
 	conn, err := net.Dial("unix", *socketPath)
 	if err != nil {
-		log.Println("Core service is not running.")
-		log.Println("Please start it with: yfw core")
+		log.Println("Core service is not running. Please start it with: yfw core")
 		os.Exit(1)
 	}
 	defer conn.Close()

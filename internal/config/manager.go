@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -11,6 +12,8 @@ import (
 
 type Manager struct {
 	mutex sync.RWMutex
+	//
+	path string
 	// 文件只读一次，写入多次
 	file *lfile.LockedFile
 	// 文件内容由conten控制
@@ -18,7 +21,11 @@ type Manager struct {
 }
 
 func New(path string) (*Manager, error) {
-	file, err := lfile.Open(path)
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve path: %w", err)
+	}
+	file, err := lfile.Open(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config file: %w", err)
 	}
@@ -35,6 +42,7 @@ func New(path string) (*Manager, error) {
 	}
 	// 返回
 	return &Manager{
+		path:    absPath,
 		file:    file,
 		content: buf,
 	}, nil
@@ -48,6 +56,10 @@ func (m *Manager) Load() Config {
 	// 直接认定不会出错
 	_ = toml.Unmarshal(m.content, &cfg)
 	return *cfg
+}
+
+func (m *Manager) Path() string {
+	return m.path
 }
 
 func (m *Manager) Read() string {

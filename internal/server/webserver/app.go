@@ -29,7 +29,7 @@ type Handler interface {
 
 	EnableRule(id string, enable bool) error
 	//
-	GetConfig() (string, error)
+	GetConfig() string
 	SetConfig(data string) error
 	//
 	CloseConnection(id string) error
@@ -163,10 +163,7 @@ func newApp(config Config, handler Handler) *fiber.App {
 	// @Failure     500  {string}  string  "错误信息"
 	// @Router      /api/config [get]
 	api.Get("/config", func(c *fiber.Ctx) error {
-		data, err := handler.GetConfig()
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-		}
+		data := handler.GetConfig()
 		return c.SendString(data)
 	})
 

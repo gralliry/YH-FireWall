@@ -26,7 +26,8 @@ type Handler interface {
 	EnableRule(id string, enable bool) error
 
 	//
-	GetConfig() (string, error)
+	GetConfig() string
+	GetConfigPath() string
 }
 
 func newCmd(handler Handler) *cobra.Command {
@@ -197,13 +198,12 @@ func newCmd(handler Handler) *cobra.Command {
 		Aliases: []string{"c", "cfg"},
 		Short:   "Get current configuration",
 		Long:    "Display the current configuration of the YH Firewall service.",
-		Example: str("yfw config"),
+		Example: str(
+			"yfw config",
+		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, err := handler.GetConfig()
-			if err != nil {
-				// todo
-				return fmt.Errorf("Faild to l confgig")
-			}
+			cmd.Printf("Config File at %s\n", handler.GetConfigPath())
+			data := handler.GetConfig()
 			cmd.Println(data)
 			return nil
 		},
