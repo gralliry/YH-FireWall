@@ -1,14 +1,26 @@
+# IDE
 .idea/
 .vscode/
 
+# 自动生成的索引和缓存
+.codegraph/
+.learnings/
+
+# 数据文件
 **/*.db
 **/*.json
+**/*.log
 
+# 测试文件
 **/*_test.go
+**/*.test.exe
 
 # 构建产物
 build/
 build.sh
+dist/
 
+# 二进制
 yfw
 yfw.exe
+*.exe

@@ -23,10 +23,10 @@ func New(pc *process.Process) *Info {
 	return &info
 }
 
-func NewByPID(pid int32) *Info {
+func NewByPID(pid int32) (*Info, error) {
 	pc, err := process.NewProcess(pid)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return New(pc)
+	return New(pc), nil
 }

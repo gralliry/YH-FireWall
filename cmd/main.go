@@ -58,19 +58,22 @@ func runClient() {
 	}
 	defer conn.Close()
 
-	server := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+	client := bufio.NewReadWriter(
+		bufio.NewReader(conn),
+		bufio.NewWriter(conn),
+	)
 
 	// 非交互模式：直接发送参数并退出
 	args := flag.Args()
 
 	cmd := strings.Join(args, " ") + "\n"
-	if _, err = server.WriteString(cmd); err != nil {
+	if _, err = client.WriteString(cmd); err != nil {
 		log.Fatal("Failed to send command:", err)
 	}
-	if err = server.Flush(); err != nil {
+	if err = client.Flush(); err != nil {
 		log.Fatal("Failed to send command:", err)
 	}
-	result, err := server.ReadString(0)
+	result, err := client.ReadString(0)
 	if err != nil {
 		log.Fatal("Failed to read result:", err)
 	}

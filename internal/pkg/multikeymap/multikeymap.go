@@ -69,12 +69,15 @@ func (m *Map[K, V]) Values() []V {
 	return values
 }
 
-func (m *Map[K, V]) Filter(f func(V) bool) {
+func (m *Map[K, V]) Extract(f func(V) bool) []V {
+	var removed []V
 	for e := range m.l {
-		if !f(e.value) {
+		if f(e.value) {
+			removed = append(removed, e.value)
 			m.unindex(e)
 		}
 	}
+	return removed
 }
 
 func (m *Map[K, V]) Range(f func(V)) {

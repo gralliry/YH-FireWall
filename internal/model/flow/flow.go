@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"fmt"
 	"net/netip"
 
 	"github.com/florianl/go-nfqueue"
@@ -98,7 +99,11 @@ func Release(f *Flow) {
 }
 
 func (f *Flow) Key() string {
-	return key(f.Protocol, f.SrcIP, f.SrcPort, f.DstIP, f.DstPort)
+	return fmt.Sprintf("%s-%s-%d-%s-%d", f.Protocol, f.SrcIP, f.SrcPort, f.DstIP, f.DstPort)
+}
+
+func (f *Flow) CKey() string {
+	return fmt.Sprintf("%s-%s-%s", f.Protocol, f.SrcAddrPort(), f.DstAddrPort())
 }
 
 func (f *Flow) Direction() Direction {
@@ -116,4 +121,12 @@ func (f *Flow) Direction() Direction {
 		// 未知数据，直接停止
 		return Unknown
 	}
+}
+
+func (f *Flow) SrcAddrPort() netip.AddrPort {
+	return netip.AddrPortFrom(f.SrcIP, f.SrcPort)
+}
+
+func (f *Flow) DstAddrPort() netip.AddrPort {
+	return netip.AddrPortFrom(f.DstIP, f.DstPort)
 }

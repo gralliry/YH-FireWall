@@ -19,9 +19,7 @@ type Server struct {
 
 func New(config Config, handler Handler) (*Server, error) {
 	server := &Server{}
-	if !config.Enable {
-		return server, nil
-	}
+	//
 	_ = os.Remove(config.SocketPath)
 	listener, err := net.Listen("unix", config.SocketPath)
 	if err != nil {
@@ -66,22 +64,27 @@ func (s *Server) acceptConn() {
 func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
 
-	reader := bufio.NewReader(conn)
-	command, err := reader.ReadString('\n')
+	server := bufio.NewReadWriter(
+		bufio.NewReader(conn), bufio.NewWriter(conn),
+	)
+	command, err := server.ReadString('\n')
 	if err != nil {
 		return
 	}
 
 	args, err := shlex.Split(strings.TrimSpace(command))
 	if err != nil {
-		conn.Write([]byte(err.Error()))
+		server.WriteString(err.Error())
 		return
 	}
 
 	cmd := newCmd(s.handler)
-	cmd.SetOut(conn)
-	cmd.SetErr(conn)
+
+	cmd.SetOut(server)
+	cmd.SetErr(server)
 
 	cmd.SetArgs(args)
 	cmd.ExecuteC()
+	// 写入终止符
+	server.Write([]byte{0})
 }

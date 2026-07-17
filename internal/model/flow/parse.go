@@ -1,7 +1,6 @@
 package flow
 
 import (
-	"fmt"
 	"net"
 	"net/netip"
 	"sync"
@@ -24,10 +23,6 @@ func setIP(f *Flow, src, dst net.IP) bool {
 	f.DstIP = dstIP.Unmap()
 
 	return true
-}
-
-func key(proto layers.IPProtocol, ip1 netip.Addr, port1 uint16, ip2 netip.Addr, port2 uint16) string {
-	return fmt.Sprintf("%s-%s-%d-%s-%d", proto, ip1, port1, ip2, port2)
 }
 
 func extractPort(packet gopacket.Packet, proto layers.IPProtocol) (uint16, uint16, bool, bool) {
