@@ -2,16 +2,18 @@ package webserver
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type Server struct {
-	app *fiber.App
+	app    *fiber.App
 }
 
 func New(config Config, handler Handler) (*Server, error) {
-	server := &Server{}
+	server := &Server{
+	}
 	if !config.Enable {
 		return server, nil
 	}
@@ -34,7 +36,7 @@ func (s *Server) Close() error {
 	if s.app == nil {
 		return nil
 	}
-	if err := s.app.Shutdown(); err != nil {
+	if err := s.app.ShutdownWithTimeout(5 * time.Second); err != nil {
 		return fmt.Errorf("failed to close webserver: %w", err)
 	}
 	// 清理逻辑在 New 中

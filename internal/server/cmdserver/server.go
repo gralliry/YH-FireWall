@@ -18,8 +18,9 @@ type Server struct {
 }
 
 func New(config Config, handler Handler) (*Server, error) {
-	server := &Server{}
-	//
+	server := &Server{
+		handler: handler,
+	}
 	_ = os.Remove(config.SocketPath)
 	listener, err := net.Listen("unix", config.SocketPath)
 	if err != nil {

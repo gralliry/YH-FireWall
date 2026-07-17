@@ -8,7 +8,6 @@ import (
 	"YH-FireWall/internal/rtable"
 	"YH-FireWall/internal/server/cmdserver"
 	"YH-FireWall/internal/server/webserver"
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -25,12 +24,13 @@ type Handler struct {
 	weber *webserver.Server
 }
 
-func New(ctx context.Context, configPath string) (*Handler, error) {
+func New(configPath string) (*Handler, error) {
 	h := &Handler{}
 	// 检测当前用户是否为 root 用户
 	if os.Geteuid() != 0 {
 		return nil, errors.New("current user is not root")
 	}
+
 	// 读取配置管理器
 	var err error
 	h.configer, err = config.New(configPath)
@@ -52,7 +52,10 @@ func New(ctx context.Context, configPath string) (*Handler, error) {
 	// 初始化连接表
 	h.conner = ctable.New()
 	// 初始化队列
-	h.queuer, err = queue.New(cfg.Queue, h.Handle)
+	h.queuer, err = queue.New(cfg.Queue, h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start queue: %w", err)
+	}
 	// 设置cmd服务器
 	h.cmder, err = cmdserver.New(cfg.Cmd, h)
 	if err != nil {

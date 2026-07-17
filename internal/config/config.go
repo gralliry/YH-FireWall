@@ -8,11 +8,11 @@ import (
 )
 
 type Config struct {
-	Version string           `json:"version"`
-	Queue   queue.Config     `json:"queue"`
-	Web     webserver.Config `json:"web"`
-	Cmd     cmdserver.Config `json:"cmd"`
-	Rule    rtable.Config    `json:"rule"`
+	Version string           `toml:"version"`
+	Queue   queue.Config     `toml:"queue"`
+	Web     webserver.Config `toml:"web"`
+	Cmd     cmdserver.Config `toml:"cmd"`
+	Rule    rtable.Config    `toml:"rule"`
 }
 
 func DefaultConfig() *Config {

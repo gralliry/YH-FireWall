@@ -12,6 +12,12 @@ type Range[T cmp.Ordered] struct {
 }
 
 func NewRange[T cmp.Ordered](raw [][2]T) *Range[T] {
+	if len(raw) == 0 {
+		return &Range[T]{
+			raw:    make([][2]T, 0),
+			ranges: make([][2]T, 0),
+		}
+	}
 	raw = slices.Clone(raw)
 	// 排序
 	ranges := slices.Clone(raw)
@@ -32,7 +38,10 @@ func NewRange[T cmp.Ordered](raw [][2]T) *Range[T] {
 		}
 	}
 	merged = append(merged, cur)
-	return &Range[T]{raw: raw, ranges: merged}
+	return &Range[T]{
+		raw:    raw,
+		ranges: merged,
+	}
 }
 
 func (r *Range[T]) Contains(port T) bool {

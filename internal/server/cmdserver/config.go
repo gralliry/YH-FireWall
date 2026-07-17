@@ -1,7 +1,7 @@
 package cmdserver
 
 type Config struct {
-	SocketPath string `json:"socket_path"`
+	SocketPath string `toml:"socket_path"`
 }
 
 func DefaultConfig() *Config {

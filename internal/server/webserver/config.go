@@ -1,18 +1,19 @@
 package webserver
 
 type Config struct {
-	Enable       bool   `json:"enable"`
-	Address      string `json:"address"`
-	AuthUsername string `json:"auth_username"`
-	AuthPassword string `json:"auth_password"`
-	StaticDir    string `json:"static_dir"`
-	EnableCORS   bool   `json:"enable_cors"`
+	Enable       bool   `toml:"enable"`
+	Address      string `toml:"address"`
+	AuthUsername string `toml:"auth_username"`
+	AuthPassword string `toml:"auth_password"`
+	StaticDir    string `toml:"static_dir"`
+	EnableCORS   bool   `toml:"enable_cors"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		Enable:       true,
-		Address:      ":8080",
+		Enable: true,
+		// 只允许本地
+		Address:      "127.0.0.1:8080",
 		AuthUsername: "admin",
 		AuthPassword: "admin",
 		StaticDir:    "",

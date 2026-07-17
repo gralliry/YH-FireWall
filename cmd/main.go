@@ -23,14 +23,17 @@ func main() {
 }
 
 func runCore() {
-	configPath := flag.String("c", "/etc/yfw/config.yaml", "Path to the configuration file")
+	configPath := flag.String("c", "/etc/yfw/config.toml", "Path to the configuration file")
 	flag.CommandLine.Parse(os.Args[2:])
 
-	ctx, cancel := signal.NotifyContext(context.Background(),
-		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP)
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
 	defer cancel()
 
-	h, err := handler.New(ctx, *configPath)
+	h, err := handler.New(*configPath)
 	if err != nil {
 		log.Fatalf("Core service failed to start: %v\n", err)
 	} else {

@@ -1,8 +1,8 @@
 package rtable
 
 type Config struct {
-	Path          string `json:"path"`
-	DefaultAccept bool   `json:"default_accept"`
+	Path          string `toml:"path"`
+	DefaultAccept bool   `toml:"default_accept"`
 }
 
 func DefaultConfig() *Config {

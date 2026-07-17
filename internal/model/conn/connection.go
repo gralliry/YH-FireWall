@@ -28,17 +28,20 @@ type Conn struct {
 	direction flow.Direction
 
 	// 状态信息
-	establishTime  time.Time
-	lastActiveTime time.Time
-	isClosed       bool
+	establishTime time.Time
+	activeTime    time.Time
+	isClosed      bool
 }
 
-func New(f *flow.Flow) *Conn {
+func New(f *flow.Flow) (*Conn, bool) {
 	// 校验flow是否是连接包
-
+	if !f.IsConnection() {
+		return nil, false
+	}
+	// 获取conn
 	c := pool.Get().(*Conn)
 	// 按需处理
-	c.id = sid.New(8)
+	c.id = sid.New(16)
 	//
 	c.protocol = f.Protocol
 	//
@@ -52,29 +55,33 @@ func New(f *flow.Flow) *Conn {
 		c.rAddrPort = netip.AddrPortFrom(f.DstIP, f.DstPort)
 	default:
 		Release(c)
-		return nil
+		return nil, false
 	}
 	//
 	c.establishTime = time.Now()
-	c.lastActiveTime = time.Now()
+	c.activeTime = time.Now()
 	c.isClosed = false
-	return c
+	return c, true
 }
 
 func Release(c *Conn) {
 	if c != nil {
 		pool.Put(c)
+	} else {
+		panic("Something try to release a nil pointer of conn")
 	}
 }
 
-func (c *Conn) Active() {
-	c.lastActiveTime = time.Now()
+func (c *Conn) ID() string {
+	return c.id
 }
 
-func (c *Conn) Close() error {
-	c.lastActiveTime = time.Now()
+func (c *Conn) Active() {
+	c.activeTime = time.Now()
+}
+
+func (c *Conn) Close() {
 	c.isClosed = true
-	return nil
 }
 
 func (c *Conn) Closed() bool {
@@ -82,11 +89,11 @@ func (c *Conn) Closed() bool {
 }
 
 func (c *Conn) Expired() bool {
-	return time.Since(c.lastActiveTime) > time.Minute
+	return time.Since(c.activeTime) > time.Minute
 }
 
-func (c *Conn) ID() string {
-	return c.id
+func (c *Conn) Alive() bool {
+	return !c.Closed() && !c.Expired()
 }
 
 func (c *Conn) LKey() string {

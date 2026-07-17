@@ -17,11 +17,14 @@ type Handler interface {
 	Version() string
 	//
 	CreateRule(ro *rule.Option) (string, error)
-	UpdateRule(ro *rule.Option) error
+	UpdateRule(id string, ro *rule.Option) error
 	DeleteRule(id string) error
-	SearchRule(id string) *rule.Option
-	EnableRule(id string, enable bool) bool
-	ListRules() []*rule.Option
+
+	SearchRule(id string) *rule.Data
+	ListRules() []*rule.Data
+
+	EnableRule(id string, enable bool) error
+
 	//
 	GetConfig() (string, error)
 }
@@ -141,8 +144,7 @@ func newCmd(handler Handler) *cobra.Command {
 			if err := json.Unmarshal([]byte(args[1]), &ro); err != nil {
 				return fmt.Errorf("invalid config: %w", err)
 			}
-			ro.ID = args[0]
-			if err := handler.UpdateRule(&ro); err != nil {
+			if err := handler.UpdateRule(args[0], &ro); err != nil {
 				return err
 			}
 			cmd.Println("Rule Updated")
@@ -162,8 +164,8 @@ func newCmd(handler Handler) *cobra.Command {
 			if len(args) == 0 {
 				return fmt.Errorf("Usage: enable {id}")
 			}
-			if !handler.EnableRule(args[0], true) {
-				return fmt.Errorf("No such rule")
+			if err := handler.EnableRule(args[0], true); err != nil {
+				return fmt.Errorf("No such rule: %w", err)
 			}
 			cmd.Println("ok")
 			return nil
@@ -182,8 +184,8 @@ func newCmd(handler Handler) *cobra.Command {
 			if len(args) == 0 {
 				return fmt.Errorf("Usage: disable {id}")
 			}
-			if !handler.EnableRule(args[0], false) {
-				return fmt.Errorf("No such rule")
+			if err := handler.EnableRule(args[0], false); err != nil {
+				return fmt.Errorf("No such rule: %w", err)
 			}
 			cmd.Println("ok")
 			return nil

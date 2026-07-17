@@ -30,9 +30,11 @@ type NFQ struct {
 	nfq    *nfqueue.Nfqueue
 }
 
-type HandleFunc func(*nfqueue.Attribute) (bool, error)
+type Handler interface {
+	HandleFlow(*nfqueue.Attribute) (bool, bool)
+}
 
-func New(cfg Config, handler HandleFunc) (*NFQ, error) {
+func New(cfg Config, handler Handler) (*NFQ, error) {
 	var err error
 	nfq, err := nfqueue.Open(&nfqueue.Config{
 		NfQueue:      cfg.Num,
@@ -71,10 +73,11 @@ func New(cfg Config, handler HandleFunc) (*NFQ, error) {
 
 func (q *NFQ) Close() error {
 	var errs []error
+	// loop 里的 `ctx` 没有 done，就永远卡在 `Wait()` 上。
+	q.cancel()
 	if err := q.nfq.Close(); err != nil {
 		errs = append(errs, err)
 	}
-	q.cancel()
 	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdUnset, q.config.Num, q.config.Name))
 	if err := cmd.Run(); err != nil {
 		errs = append(errs, err)
@@ -82,11 +85,15 @@ func (q *NFQ) Close() error {
 	return errors.Join(errs...)
 }
 
-func hookFunc(nfq *nfqueue.Nfqueue, handler HandleFunc) nfqueue.HookFunc {
+func hookFunc(nfq *nfqueue.Nfqueue, handler Handler) nfqueue.HookFunc {
 	return func(a nfqueue.Attribute) int {
-		if ok, err := handler(&a); err != nil {
+		if a.PacketID == nil {
 			return -1
-		} else if ok {
+		}
+		if accept, ok := handler.HandleFlow(&a); !ok {
+			nfq.SetVerdict(*a.PacketID, nfqueue.NfDrop)
+			return -1
+		} else if accept {
 			nfq.SetVerdict(*a.PacketID, nfqueue.NfAccept)
 			return 0
 		} else {

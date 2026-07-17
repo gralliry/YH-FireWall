@@ -2,37 +2,12 @@ package rule
 
 import (
 	"YH-FireWall/internal/model/flow"
-	"YH-FireWall/internal/pkg/container"
-	"net/netip"
-
-	"github.com/google/gopacket/layers"
 )
 
-type Rule struct {
-	id       string
-	group    string
-	comment  string
-	accept   bool
-	priority int
-	enable   bool
 
-	// 动态解析
-	srcPrefixs, dstPrefixs       *container.Group[netip.Prefix, netip.Addr]
-	srcPortRanges, dstPortRanges *container.Range[uint16]
-	inDevs, outDevs              *container.Set[uint32]
-	protocols                    *container.Set[layers.IPProtocol]
-}
-
-func New(id string) *Rule {
-	return &Rule{id: id}
-}
 
 func (r *Rule) ID() string {
 	return r.id
-}
-
-func (r *Rule) SetEnable(enable bool) {
-	r.enable = enable
 }
 
 func (r *Rule) Accept() bool {

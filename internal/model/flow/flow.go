@@ -27,6 +27,7 @@ type Flow struct {
 	// IPv4 IPv6
 	SrcIP netip.Addr
 	DstIP netip.Addr
+
 	// TCP UDP SCTP DCCP UDPLite
 	HasPort bool
 	SrcPort uint16
@@ -67,6 +68,7 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 		})
 		layer := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
 		if !setIP(f, layer.SrcIP, layer.DstIP) {
+			Release(f)
 			return nil, false
 		}
 		f.Protocol = layer.Protocol
@@ -77,10 +79,12 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 		})
 		layer := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
 		if !setIP(f, layer.SrcIP, layer.DstIP) {
+			Release(f)
 			return nil, false
 		}
 		f.Protocol = layer.NextHeader
 	default:
+		Release(f)
 		return nil, false
 	}
 
@@ -88,6 +92,7 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 	var ok bool
 	f.SrcPort, f.DstPort, f.HasPort, ok = extractPort(packet, f.Protocol)
 	if !ok {
+		Release(f)
 		return nil, false
 	}
 
@@ -95,15 +100,19 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 }
 
 func Release(f *Flow) {
-	pool.Put(f)
+	if f != nil {
+		pool.Put(f)
+	} else {
+		panic("Something try to release a nil pointer of flow")
+	}
 }
 
 func (f *Flow) Key() string {
-	return fmt.Sprintf("%s-%s-%d-%s-%d", f.Protocol, f.SrcIP, f.SrcPort, f.DstIP, f.DstPort)
+	return fmt.Sprintf("%s-%s-%s", f.Protocol, f.SrcAddrPort(), f.DstAddrPort())
 }
 
-func (f *Flow) CKey() string {
-	return fmt.Sprintf("%s-%s-%s", f.Protocol, f.SrcAddrPort(), f.DstAddrPort())
+func (f *Flow) IsConnection() bool {
+	return f.Protocol == layers.IPProtocolTCP || f.Protocol == layers.IPProtocolUDP
 }
 
 func (f *Flow) Direction() Direction {

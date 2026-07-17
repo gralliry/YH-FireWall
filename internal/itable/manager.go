@@ -2,15 +2,13 @@ package itable
 
 import (
 	"YH-FireWall/internal/model/itf"
+	"YH-FireWall/internal/pkg/bimap"
 	"net"
-	"slices"
 )
 
 type Manager struct {
 	interfaces []*itf.Itf
-
-	name2index map[string]uint32
-	index2name map[uint32]string
+	pmap       *bimap.Map[string, uint32]
 }
 
 func New() (*Manager, error) {
@@ -21,35 +19,32 @@ func New() (*Manager, error) {
 	}
 	var (
 		interfaces = make([]*itf.Itf, 0)
-		name2index = make(map[string]uint32)
-		index2name = make(map[uint32]string)
+		pmap       = bimap.New[string, uint32]()
 	)
 	for _, sItf := range sItfs {
 		interfaces = append(interfaces, itf.New(&sItf))
 	}
 	for _, i := range interfaces {
-		name2index[i.Name] = i.Index
-		index2name[i.Index] = i.Name
+		pmap.Insert(i.Name, i.Index)
 	}
 	return &Manager{
 		interfaces: interfaces,
-
-		name2index: name2index,
-		index2name: index2name,
+		pmap:       pmap,
 	}, nil
 }
 
 func (t *Manager) List() []*itf.Itf {
-	// todo 这里有深拷贝问题
-	return slices.Clone(t.interfaces)
+	itfs := make([]*itf.Itf, len(t.interfaces))
+	for i, itf := range t.interfaces {
+		itfs[i] = itf.Clone()
+	}
+	return itfs
 }
 
 func (t *Manager) Name2Index(name string) (uint32, bool) {
-	index, ok := t.name2index[name]
-	return index, ok
+	return t.pmap.GetByA(name)
 }
 
 func (t *Manager) Index2Name(index uint32) (string, bool) {
-	name, exist := t.index2name[index]
-	return name, exist
+	return t.pmap.GetByB(index)
 }

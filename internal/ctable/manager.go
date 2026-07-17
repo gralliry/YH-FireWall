@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/gopacket/layers"
 	nnet "github.com/shirou/gopsutil/v4/net"
 )
 
@@ -42,19 +43,38 @@ func (m *Manager) Close() error {
 	return nil
 }
 
+func (m *Manager) Match(f *flow.Flow) (accept bool, exist bool) {
+	// 校验flow是否是连接包
+	if !f.IsConnection() {
+		return false, false
+	}
+	// 加锁
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	// 检查是否在table里面
+	if conn, exists := m.table.Get(f.Key()); !exists {
+		return false, false
+	} else if conn.Alive() {
+		conn.Active()
+		return true, true
+	} else {
+		return false, true
+	}
+}
+
 func (m *Manager) Remove(id string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	conn, exists := m.table.Get(id)
+	c, exists := m.table.Get(id)
 	if !exists {
 		return errors.New("connection not found")
 	}
-	if conn.Closed() {
+	if c.Closed() {
 		return errors.New("connection already closed")
 	}
-	if err := conn.Close(); err != nil {
-		return fmt.Errorf("failed to close connection: %w", err)
-	}
+	m.table.Del(id)
+	c.Close()
+	conn.Release(c)
 	return nil
 }
 
@@ -67,7 +87,6 @@ func (m *Manager) List() []*conn.Info {
 	connList = funcs.Filter(connList, func(c *conn.Conn) bool {
 		return !c.Expired() && !c.Closed()
 	})
-
 	// 映射到Info
 	infoList := make([]*conn.Info, 0)
 	// 查找所有连接
@@ -81,8 +100,19 @@ func (m *Manager) List() []*conn.Info {
 		connMap.Set(conn, conn.LKey(), conn.RKey())
 	}
 	for _, bc := range bconnList {
-		// 获取连接
-		c, exist := connMap.Get(bc.Laddr.String())
+		// 映射 socket type 到协议
+		var proto layers.IPProtocol
+		switch bc.Type {
+		case 1: // SOCK_STREAM
+			proto = layers.IPProtocolTCP
+		case 2: // SOCK_DGRAM
+			proto = layers.IPProtocolUDP
+		default:
+			continue
+		}
+		// 拼出和 LKey() 一致格式的 key
+		key := fmt.Sprintf("%s-%s-%s", proto, bc.Laddr.String(), bc.Raddr.String())
+		c, exist := connMap.Get(key)
 		if !exist {
 			continue
 		}
@@ -94,8 +124,11 @@ func (m *Manager) List() []*conn.Info {
 }
 
 func (m *Manager) Push(f *flow.Flow) {
+	if !f.IsConnection() {
+		return
+	}
 	// 添加连接键
-	key := f.CKey()
+	key := f.Key()
 	// 加锁
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -115,14 +148,13 @@ func (m *Manager) Push(f *flow.Flow) {
 		conn.Release(c)
 	} else {
 		// 添加连接 // 获取方向
-		c = conn.New(f)
+		c, ok := conn.New(f)
+		if !ok {
+			return
+		}
 		// 写入表
 		m.table.Set(c, c.LKey(), c.RKey(), c.ID())
 	}
-}
-
-func (m *Manager) Match(f *flow.Flow) bool {
-	return false
 }
 
 func (m *Manager) clean() {

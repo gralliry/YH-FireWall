@@ -1,8 +1,8 @@
 package queue
 
 type Config struct {
-	Num  uint16 `json:"no"`
-	Name string `json:"name"`
+	Num  uint16 `toml:"num"`
+	Name string `toml:"name"`
 }
 
 func DefaultConfig() *Config {
