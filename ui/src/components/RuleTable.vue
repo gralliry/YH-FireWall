@@ -41,13 +41,13 @@
             <div class="header-selector">
                 <el-checkbox v-model="visibleCols.group">Group</el-checkbox>
                 <el-checkbox v-model="visibleCols.comment">Comment</el-checkbox>
-                <el-checkbox v-model="visibleCols.srcNet">SrcNet</el-checkbox>
-                <el-checkbox v-model="visibleCols.srcPort">SrcPort</el-checkbox>
-                <el-checkbox v-model="visibleCols.tarNet">TarNet</el-checkbox>
-                <el-checkbox v-model="visibleCols.tarPort">TarPort</el-checkbox>
-                <el-checkbox v-model="visibleCols.inDev">InDev</el-checkbox>
-                <el-checkbox v-model="visibleCols.outDev">OutDev</el-checkbox>
-                <el-checkbox v-model="visibleCols.protocol">Protocol</el-checkbox>
+                <el-checkbox v-model="visibleCols.srcNets">SrcNet</el-checkbox>
+                <el-checkbox v-model="visibleCols.srcPorts">SrcPort</el-checkbox>
+                <el-checkbox v-model="visibleCols.dstNets">DstNet</el-checkbox>
+                <el-checkbox v-model="visibleCols.dstPorts">DstPort</el-checkbox>
+                <el-checkbox v-model="visibleCols.inDevs">InDev</el-checkbox>
+                <el-checkbox v-model="visibleCols.outDevs">OutDev</el-checkbox>
+                <el-checkbox v-model="visibleCols.protocols">Protocol</el-checkbox>
                 <el-checkbox v-model="visibleCols.accept">Accept</el-checkbox>
                 <el-checkbox v-model="visibleCols.priority">Priority</el-checkbox>
                 <el-checkbox v-model="visibleCols.enable">Enable</el-checkbox>
@@ -80,58 +80,58 @@
                 </el-table-column>
 
                 <!-- SrcNet -->
-                <el-table-column v-if="visibleCols.srcNet" prop="srcNet" label="SrcNet">
+                <el-table-column v-if="visibleCols.srcNets" prop="srcNets" label="SrcNet">
                     <template #default="{ row }">
-                        <el-input v-if="row.isEditing" v-model="row.cache.srcNet" type="textarea" autosize />
-                        <span v-else>{{ row.data.srcNet }}</span>
+                        <el-input v-if="row.isEditing" v-model="row.cache.srcNets" type="textarea" autosize />
+                        <span v-else>{{ row.data.srcNets }}</span>
                     </template>
                 </el-table-column>
 
                 <!-- SrcPort -->
-                <el-table-column v-if="visibleCols.srcPort" prop="srcPort" label="SrcPort">
+                <el-table-column v-if="visibleCols.srcPorts" prop="srcPorts" label="SrcPort">
                     <template #default="{ row }">
-                        <el-input v-if="row.isEditing" v-model="row.cache.srcPort" type="textarea" autosize />
-                        <span v-else>{{ row.data.srcPort }}</span>
+                        <el-input v-if="row.isEditing" v-model="row.cache.srcPorts" type="textarea" autosize />
+                        <span v-else>{{ row.data.srcPorts }}</span>
                     </template>
                 </el-table-column>
 
-                <!-- TarNet -->
-                <el-table-column v-if="visibleCols.tarNet" prop="tarNet" label="TarNet">
+                <!-- DstNet -->
+                <el-table-column v-if="visibleCols.dstNets" prop="dstNets" label="DstNet">
                     <template #default="{ row }">
-                        <el-input v-if="row.isEditing" v-model="row.cache.tarNet" type="textarea" autosize />
-                        <span v-else>{{ row.data.tarNet }}</span>
+                        <el-input v-if="row.isEditing" v-model="row.cache.dstNets" type="textarea" autosize />
+                        <span v-else>{{ row.data.dstNets }}</span>
                     </template>
                 </el-table-column>
 
-                <!-- TarPort -->
-                <el-table-column v-if="visibleCols.tarPort" prop="tarPort" label="TarPort">
+                <!-- DstPort -->
+                <el-table-column v-if="visibleCols.dstPorts" prop="dstPorts" label="DstPort">
                     <template #default="{ row }">
-                        <el-input v-if="row.isEditing" v-model="row.cache.tarPort" type="textarea" autosize />
-                        <span v-else>{{ row.data.tarPort }}</span>
+                        <el-input v-if="row.isEditing" v-model="row.cache.dstPorts" type="textarea" autosize />
+                        <span v-else>{{ row.data.dstPorts }}</span>
                     </template>
                 </el-table-column>
 
                 <!-- InDev -->
-                <el-table-column v-if="visibleCols.inDev" prop="inDev" label="InDev">
+                <el-table-column v-if="visibleCols.inDevs" prop="inDevs" label="InDev">
                     <template #default="{ row }">
-                        <el-input v-if="row.isEditing" v-model="row.cache.inDev" type="textarea" autosize />
-                        <span v-else>{{ row.data.inDev }}</span>
+                        <el-input v-if="row.isEditing" v-model="row.cache.inDevs" type="textarea" autosize />
+                        <span v-else>{{ row.data.inDevs }}</span>
                     </template>
                 </el-table-column>
 
                 <!-- OutDev -->
-                <el-table-column v-if="visibleCols.outDev" prop="outDev" label="OutDev">
+                <el-table-column v-if="visibleCols.outDevs" prop="outDevs" label="OutDev">
                     <template #default="{ row }">
-                        <el-input v-if="row.isEditing" v-model="row.cache.outDev" type="textarea" autosize />
-                        <span v-else>{{ row.data.outDev }}</span>
+                        <el-input v-if="row.isEditing" v-model="row.cache.outDevs" type="textarea" autosize />
+                        <span v-else>{{ row.data.outDevs }}</span>
                     </template>
                 </el-table-column>
 
                 <!-- Protocol -->
-                <el-table-column v-if="visibleCols.protocol" prop="protocol" label="Protocol" align="center">
+                <el-table-column v-if="visibleCols.protocols" prop="protocols" label="Protocol" align="center">
                     <template #default="{ row }">
-                        <el-input v-if="row.isEditing" v-model="row.cache.protocol" type="textarea" autosize />
-                        <span v-else>{{ row.data.protocol }}</span>
+                        <el-input v-if="row.isEditing" v-model="row.cache.protocols" type="textarea" autosize />
+                        <span v-else>{{ row.data.protocols }}</span>
                     </template>
                 </el-table-column>
 
@@ -206,13 +206,13 @@ interface Rule {
     id: string
     group: string
     comment: string
-    srcNet: string
-    srcPort: string
-    tarNet: string
-    tarPort: string
-    inDev: string
-    outDev: string
-    protocol: string
+    srcNets: string
+    srcPorts: string
+    dstNets: string
+    dstPorts: string
+    inDevs: string
+    outDevs: string
+    protocols: string
     accept: boolean
     priority: number
     enable: boolean
@@ -231,13 +231,13 @@ const ruleData = ref<ERule[]>([])
 const visibleCols = ref({
     group: true,
     comment: true,
-    srcNet: true,
-    srcPort: true,
-    tarNet: true,
-    tarPort: true,
-    inDev: true,
-    outDev: true,
-    protocol: true,
+    srcNets: true,
+    srcPorts: true,
+    dstNets: true,
+    dstPorts: true,
+    inDevs: true,
+    outDevs: true,
+    protocols: true,
     accept: true,
     priority: true,
     enable: true,
@@ -311,13 +311,13 @@ function handleAdd() {
         id: '',
         group: '',
         comment: '',
-        srcNet: '',
-        srcPort: '',
-        tarNet: '',
-        tarPort: '',
-        inDev: '',
-        outDev: '',
-        protocol: '',
+        srcNets: '',
+        srcPorts: '',
+        dstNets: '',
+        dstPorts: '',
+        inDevs: '',
+        outDevs: '',
+        protocols: '',
         accept: true,
         priority: 0,
         enable: true,

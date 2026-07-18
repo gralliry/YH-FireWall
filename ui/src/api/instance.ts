@@ -2,7 +2,7 @@
 import axios from 'axios'
 
 // 可以在这里改统一前缀，例如 '/api'、'/backend/api' 等
-export const axiosInstance = axios.create()
+export const axiosInstance = axios.create({ baseURL: '/api' })
 
 // ✅ 请求拦截器（可选）
 axiosInstance.interceptors.request.use(
