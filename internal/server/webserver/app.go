@@ -5,6 +5,7 @@ import (
 	"YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
 	"YH-FireWall/ui"
+	"fmt"
 	"io/fs"
 
 	"github.com/gofiber/fiber/v3"
@@ -38,7 +39,7 @@ type Handler interface {
 	ListProtocols() []string
 }
 
-func newApp(config Config, handler Handler) *fiber.App {
+func newApp(config Config, handler Handler) (*fiber.App, error) {
 	app := fiber.New()
 
 	// 设置跨域中间件
@@ -84,7 +85,7 @@ func newApp(config Config, handler Handler) *fiber.App {
 	} else {
 		subFS, err := fs.Sub(ui.FS, "dist")
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("frontend dist not found: %w (run 'npm run build' first)", err)
 		}
 		app.Use(static.New("", static.Config{
 			FS:     subFS,
@@ -92,5 +93,5 @@ func newApp(config Config, handler Handler) *fiber.App {
 		}))
 	}
 
-	return app
+	return app, nil
 }

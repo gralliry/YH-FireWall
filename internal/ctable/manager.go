@@ -21,7 +21,6 @@ type Manager struct {
 	mutex  sync.RWMutex
 
 	table   *multikeymap.Map[string, *conn.Conn]
-	channel chan *flow.Flow
 }
 
 func New() *Manager {
@@ -31,7 +30,6 @@ func New() *Manager {
 		cancel: cancel,
 
 		table:   multikeymap.New[string, *conn.Conn](),
-		channel: make(chan *flow.Flow, 1024),
 	}
 	go t.clean()
 	return t
@@ -39,7 +37,6 @@ func New() *Manager {
 
 func (m *Manager) Close() error {
 	m.cancel()
-	close(m.channel)
 	return nil
 }
 
@@ -49,8 +46,8 @@ func (m *Manager) Match(f *flow.Flow) (accept bool, exist bool) {
 		return false, false
 	}
 	// 加锁
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	// 检查是否在table里面
 	if conn, exists := m.table.Get(f.Key()); !exists {
 		return false, false
@@ -79,8 +76,8 @@ func (m *Manager) Remove(id string) error {
 }
 
 func (m *Manager) List() []*conn.Info {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	// Step 1: 提取所有连接（values）
 	connList := m.table.Values()
 	// Distinct 跳过重复的连接
@@ -146,15 +143,14 @@ func (m *Manager) Push(f *flow.Flow) {
 		// 移除连接
 		m.table.Del(c.ID())
 		conn.Release(c)
-	} else {
-		// 添加连接 // 获取方向
-		c, ok := conn.New(f)
-		if !ok {
-			return
-		}
-		// 写入表
-		m.table.Set(c, c.LKey(), c.RKey(), c.ID())
 	}
+	// 添加连接 // 获取方向
+	c, ok := conn.New(f)
+	if !ok {
+		return
+	}
+	// 写入表
+	m.table.Set(c, c.LKey(), c.RKey(), c.ID())
 }
 
 func (m *Manager) clean() {

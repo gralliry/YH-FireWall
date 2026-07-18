@@ -1,6 +1,8 @@
 package proc
 
 import (
+	"errors"
+
 	"github.com/shirou/gopsutil/v4/process"
 )
 
@@ -12,15 +14,28 @@ type Info struct {
 	Username string `json:"username"`
 }
 
-func New(pc *process.Process) *Info {
-	// 获取进程信息
+func New(pc *process.Process) (*Info, error) {
 	var info Info
+	var errs []error
+	var err error
 	info.Pid = pc.Pid
-	info.Exe, _ = pc.Exe()
-	info.Name, _ = pc.Name()
-	info.Cmdline, _ = pc.Cmdline()
-	info.Username, _ = pc.Username()
-	return &info
+	info.Exe, err = pc.Exe()
+	if err != nil {
+		errs = append(errs, err)
+	}
+	info.Name, err = pc.Name()
+	if err != nil {
+		errs = append(errs, err)
+	}
+	info.Cmdline, err = pc.Cmdline()
+	if err != nil {
+		errs = append(errs, err)
+	}
+	info.Username, err = pc.Username()
+	if err != nil {
+		errs = append(errs, err)
+	}
+	return &info, errors.Join(errs...)
 }
 
 func NewByPID(pid int32) (*Info, error) {
@@ -28,5 +43,5 @@ func NewByPID(pid int32) (*Info, error) {
 	if err != nil {
 		return nil, err
 	}
-	return New(pc), nil
+	return New(pc)
 }

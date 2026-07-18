@@ -10,6 +10,7 @@ import (
 	"YH-FireWall/internal/server/webserver"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 )
 
@@ -25,6 +26,13 @@ type Handler struct {
 
 func New(configPath string) (*Handler, error) {
 	h := &Handler{}
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			h.Close()
+		}
+	}()
+
 	// 检测当前用户是否为 root 用户
 	if os.Geteuid() != 0 {
 		return nil, errors.New("current user is not root")
@@ -44,7 +52,7 @@ func New(configPath string) (*Handler, error) {
 		return nil, fmt.Errorf("failed to load interfaces: %w", err)
 	}
 	// 初始化规则管理器
-	h.ruler, err = rtable.New(cfg.Rule)
+	h.ruler, err = rtable.New(cfg.Rule, slog.Default())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load rule table: %w", err)
 	}
@@ -65,31 +73,44 @@ func New(configPath string) (*Handler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to start webserver: %w", err)
 	}
+	succeeded = true
 	return h, nil
 }
 
 func (h *Handler) Close() error {
 	var errs []error
 	// 停止 cmdserver 监听
-	if err := h.cmder.Close(); err != nil {
-		errs = append(errs, err)
+	if h.cmder != nil {
+		if err := h.cmder.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	// 停止 webserver 监听
-	if err := h.weber.Close(); err != nil {
-		errs = append(errs, err)
+	if h.weber != nil {
+		if err := h.weber.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	// 关闭队列
-	if err := h.queuer.Close(); err != nil {
-		errs = append(errs, err)
+	if h.queuer != nil {
+		if err := h.queuer.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	if err := h.conner.Close(); err != nil {
-		errs = append(errs, err)
+	if h.conner != nil {
+		if err := h.conner.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	if err := h.ruler.Close(); err != nil {
-		errs = append(errs, err)
+	if h.ruler != nil {
+		if err := h.ruler.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	if err := h.configer.Close(); err != nil {
-		errs = append(errs, err)
+	if h.configer != nil {
+		if err := h.configer.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	return errors.Join(errs...)
 }

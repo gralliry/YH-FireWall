@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -9,6 +10,7 @@ import (
 )
 
 type Server struct {
+	mu  sync.Mutex
 	app *fiber.App
 }
 
@@ -17,7 +19,10 @@ func New(config Config, handler Handler) (*Server, error) {
 	if !config.Enable {
 		return server, nil
 	}
-	app := newApp(config, handler)
+	app, err := newApp(config, handler)
+	if err != nil {
+		return nil, err
+	}
 	// 启动监听
 	server.app = app
 	go func() {
@@ -25,23 +30,30 @@ func New(config Config, handler Handler) (*Server, error) {
 			DisableStartupMessage: true,
 		}); err != nil {
 			log.Error(err)
+			server.mu.Lock()
 			server.app = nil
+			server.mu.Unlock()
 		}
 	}()
 	return server, nil
 }
 
 func (s *Server) Running() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.app != nil
 }
 
 func (s *Server) Close() error {
-	if s.app == nil {
+	s.mu.Lock()
+	app := s.app
+	s.app = nil
+	s.mu.Unlock()
+	if app == nil {
 		return nil
 	}
-	if err := s.app.ShutdownWithTimeout(5 * time.Second); err != nil {
+	if err := app.ShutdownWithTimeout(5 * time.Second); err != nil {
 		return fmt.Errorf("failed to close webserver: %w", err)
 	}
-	// 清理逻辑在 New 中
 	return nil
 }

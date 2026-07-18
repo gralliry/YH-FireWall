@@ -65,6 +65,8 @@ func (s *Server) acceptConn() {
 func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
 
+	conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+
 	server := bufio.NewReadWriter(
 		bufio.NewReader(conn),
 		bufio.NewWriter(conn),

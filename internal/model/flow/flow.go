@@ -66,7 +66,12 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 			Lazy:   true,
 			NoCopy: true,
 		})
-		layer := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+		ipLayer := packet.Layer(layers.LayerTypeIPv4)
+		if ipLayer == nil {
+			Release(f)
+			return nil, false
+		}
+		layer := ipLayer.(*layers.IPv4)
 		if !setIP(f, layer.SrcIP, layer.DstIP) {
 			Release(f)
 			return nil, false
@@ -77,7 +82,12 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 			Lazy:   true,
 			NoCopy: true,
 		})
-		layer := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
+		ipLayer := packet.Layer(layers.LayerTypeIPv6)
+		if ipLayer == nil {
+			Release(f)
+			return nil, false
+		}
+		layer := ipLayer.(*layers.IPv6)
 		if !setIP(f, layer.SrcIP, layer.DstIP) {
 			Release(f)
 			return nil, false

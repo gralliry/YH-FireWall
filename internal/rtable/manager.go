@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -26,9 +27,10 @@ type Manager struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	dirty  chan struct{}
+	logger *slog.Logger
 }
 
-func New(config Config) (*Manager, error) {
+func New(config Config, logger *slog.Logger) (*Manager, error) {
 	file, err := lfile.Open(config.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open rule file: %w", err)
@@ -54,6 +56,7 @@ func New(config Config) (*Manager, error) {
 	for _, rd := range rds {
 		rr, err := rule.Parse(rd, itfdev.Name2Index, protocol.Name2Protocol)
 		if err != nil {
+			logger.Warn("rtable: skip rule", slog.String("id", rd.ID), slog.String("error", err.Error()))
 			continue
 		}
 		rules.Insert(rd.ID, rr)
@@ -67,6 +70,7 @@ func New(config Config) (*Manager, error) {
 		ctx:    ctx,
 		cancel: cancel,
 		dirty:  make(chan struct{}, 1),
+		logger: logger,
 	}
 	go m.handleSave()
 	return m, nil
@@ -96,7 +100,9 @@ func (m *Manager) handleSave() {
 		select {
 		case <-m.dirty:
 			// 开始写入
-			_ = m.save()
+			if err := m.save(); err != nil {
+				m.logger.Error("rtable: save failed", slog.String("error", err.Error()))
+			}
 			// 适当睡眠
 			time.Sleep(time.Second)
 		case <-m.ctx.Done():
@@ -104,7 +110,9 @@ func (m *Manager) handleSave() {
 			select {
 			case <-m.dirty:
 				// 开始写入
-				_ = m.save()
+				if err := m.save(); err != nil {
+					m.logger.Error("rtable: save failed", slog.String("error", err.Error()))
+				}
 			default:
 			}
 			return
