@@ -67,9 +67,8 @@ func (m *Manager) Path() string {
 }
 
 func (m *Manager) Read() string {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	return string(m.content)
 }
 

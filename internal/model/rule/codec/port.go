@@ -52,6 +52,3 @@ func StringifyPort(ranges [][2]uint16) string {
 	}
 	return strings.Join(parts, StandardSplitter)
 }
-
-// ====================================================
-//

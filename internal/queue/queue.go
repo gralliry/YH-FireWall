@@ -57,8 +57,7 @@ func New(cfg Config, handler Handler) (*NFQ, error) {
 		cancel()
 		return nil, err
 	}
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdSet, cfg.Num, cfg.Name))
-	if err := cmd.Run(); err != nil {
+	if err := iptables(fmt.Sprintf(cmdSet, cfg.Num, cfg.Name)); err != nil {
 		nfq.Close()
 		cancel()
 		return nil, err
@@ -73,16 +72,20 @@ func New(cfg Config, handler Handler) (*NFQ, error) {
 
 func (q *NFQ) Close() error {
 	var errs []error
-	// loop 里的 `ctx` 没有 done，就永远卡在 `Wait()` 上。
 	q.cancel()
 	if err := q.nfq.Close(); err != nil {
 		errs = append(errs, err)
 	}
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(cmdUnset, q.config.Num, q.config.Name))
-	if err := cmd.Run(); err != nil {
+	if err := iptables(fmt.Sprintf(cmdUnset, q.config.Num, q.config.Name)); err != nil {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
+}
+
+func iptables(cmd string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return exec.CommandContext(ctx, "bash", "-c", cmd).Run()
 }
 
 func hookFunc(nfq *nfqueue.Nfqueue, handler Handler) nfqueue.HookFunc {

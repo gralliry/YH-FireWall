@@ -49,14 +49,15 @@ func (m *Manager) Match(f *flow.Flow) (accept bool, exist bool) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	// 检查是否在table里面
-	if conn, exists := m.table.Get(f.Key()); !exists {
+	conn, exists := m.table.Get(f.Key())
+	if !exists {
 		return false, false
-	} else if conn.Alive() {
-		conn.Active()
-		return true, true
-	} else {
+	}
+	if !conn.Alive() {
 		return false, true
 	}
+	conn.Active()
+	return true, true
 }
 
 func (m *Manager) Remove(id string) error {

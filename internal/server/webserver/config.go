@@ -12,7 +12,6 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Enable:       true,
-		// 只允许本地
 		Address:      "0.0.0.0:8080",
 		AuthUsername: "",
 		AuthPassword: "",
