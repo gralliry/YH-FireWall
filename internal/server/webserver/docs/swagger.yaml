@@ -1,0 +1,349 @@
+definitions:
+  YH-FireWall_internal_model_conn.Info:
+    properties:
+      direction:
+        allOf:
+        - $ref: '#/definitions/YH-FireWall_internal_model_flow.Direction'
+        description: 网卡方向信息
+      establishTime:
+        description: 建立时间
+        type: integer
+      id:
+        description: 连接id
+        type: string
+      localIP:
+        $ref: '#/definitions/netip.AddrPort'
+      process:
+        allOf:
+        - $ref: '#/definitions/YH-FireWall_internal_model_proc.Info'
+        description: 进程信息
+      protocol:
+        allOf:
+        - $ref: '#/definitions/layers.IPProtocol'
+        description: 连接信息
+      remoteIP:
+        $ref: '#/definitions/netip.AddrPort'
+    type: object
+  YH-FireWall_internal_model_flow.Direction:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    format: int32
+    type: integer
+    x-enum-varnames:
+    - Inbound
+    - Outbound
+    - Forward
+    - Unknown
+  YH-FireWall_internal_model_proc.Info:
+    properties:
+      cmdline:
+        type: string
+      exe:
+        type: string
+      name:
+        type: string
+      pid:
+        type: integer
+      username:
+        type: string
+    type: object
+  YH-FireWall_internal_model_rule.Data:
+    properties:
+      accept:
+        type: boolean
+      comment:
+        type: string
+      dstNets:
+        type: string
+      dstPorts:
+        type: string
+      enable:
+        type: boolean
+      group:
+        type: string
+      id:
+        type: string
+      inDevs:
+        type: string
+      outDevs:
+        type: string
+      priority:
+        type: integer
+      protocols:
+        type: string
+      srcNets:
+        type: string
+      srcPorts:
+        type: string
+    type: object
+  YH-FireWall_internal_model_rule.Option:
+    properties:
+      accept:
+        type: boolean
+      comment:
+        type: string
+      dstNets:
+        type: string
+      dstPorts:
+        type: string
+      enable:
+        type: boolean
+      group:
+        type: string
+      inDevs:
+        type: string
+      outDevs:
+        type: string
+      priority:
+        type: integer
+      protocols:
+        type: string
+      srcNets:
+        type: string
+      srcPorts:
+        type: string
+    type: object
+  layers.IPProtocol:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 4
+    - 6
+    - 17
+    - 27
+    - 41
+    - 43
+    - 44
+    - 47
+    - 50
+    - 51
+    - 58
+    - 59
+    - 60
+    - 89
+    - 94
+    - 97
+    - 112
+    - 132
+    - 136
+    - 137
+    format: int32
+    type: integer
+    x-enum-varnames:
+    - IPProtocolIPv6HopByHop
+    - IPProtocolICMPv4
+    - IPProtocolIGMP
+    - IPProtocolIPv4
+    - IPProtocolTCP
+    - IPProtocolUDP
+    - IPProtocolRUDP
+    - IPProtocolIPv6
+    - IPProtocolIPv6Routing
+    - IPProtocolIPv6Fragment
+    - IPProtocolGRE
+    - IPProtocolESP
+    - IPProtocolAH
+    - IPProtocolICMPv6
+    - IPProtocolNoNextHeader
+    - IPProtocolIPv6Destination
+    - IPProtocolOSPF
+    - IPProtocolIPIP
+    - IPProtocolEtherIP
+    - IPProtocolVRRP
+    - IPProtocolSCTP
+    - IPProtocolUDPLite
+    - IPProtocolMPLSInIP
+  netip.AddrPort:
+    type: object
+info:
+  contact: {}
+paths:
+  /api/config:
+    get:
+      description: 获取当前防火墙配置
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: 配置内容
+          schema:
+            type: string
+        "500":
+          description: 错误信息
+          schema:
+            type: string
+      summary: 获取配置
+      tags:
+      - config
+    post:
+      consumes:
+      - text/plain
+      description: 更新防火墙配置
+      parameters:
+      - description: JSON 格式的配置内容
+        in: body
+        name: data
+        required: true
+        schema:
+          type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "500":
+          description: 错误信息
+          schema:
+            type: string
+      summary: 更新配置
+      tags:
+      - config
+  /api/connection:
+    get:
+      description: 获取当前所有活跃的网络连接
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/YH-FireWall_internal_model_conn.Info'
+            type: array
+      summary: 获取连接列表
+      tags:
+      - connection
+  /api/connection/{id}:
+    delete:
+      description: 强制关闭指定 ID 的网络连接
+      parameters:
+      - description: 连接ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "500":
+          description: 错误信息
+          schema:
+            type: string
+      summary: 关闭连接
+      tags:
+      - connection
+  /api/ping:
+    get:
+      description: 健康检查
+      responses:
+        "200":
+          description: pong
+          schema:
+            type: string
+      summary: Ping
+      tags:
+      - system
+  /api/rule:
+    get:
+      description: 返回防火墙规则列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/YH-FireWall_internal_model_rule.Data'
+            type: array
+      summary: 获取所有规则
+      tags:
+      - rule
+    post:
+      consumes:
+      - application/json
+      description: 添加一条防火墙规则
+      parameters:
+      - description: 规则配置
+        in: body
+        name: option
+        required: true
+        schema:
+          $ref: '#/definitions/YH-FireWall_internal_model_rule.Option'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: 规则ID
+          schema:
+            type: string
+        "400":
+          description: 错误信息
+          schema:
+            type: string
+      summary: 添加规则
+      tags:
+      - rule
+  /api/rule/{id}:
+    delete:
+      description: 删除指定 ID 的防火墙规则
+      parameters:
+      - description: 规则ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: 错误信息
+          schema:
+            type: string
+      summary: 删除规则
+      tags:
+      - rule
+    put:
+      consumes:
+      - application/json
+      description: 更新指定 ID 的防火墙规则
+      parameters:
+      - description: 规则ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 规则配置
+        in: body
+        name: option
+        required: true
+        schema:
+          $ref: '#/definitions/YH-FireWall_internal_model_rule.Option'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: 错误信息
+          schema:
+            type: string
+      summary: 更新规则
+      tags:
+      - rule
+swagger: "2.0"

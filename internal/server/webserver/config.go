@@ -13,7 +13,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Enable: true,
 		// 只允许本地
-		Address:      "127.0.0.1:8080",
+		Address:      "0.0.0.0:8080",
 		AuthUsername: "admin",
 		AuthPassword: "admin",
 		StaticDir:    "",

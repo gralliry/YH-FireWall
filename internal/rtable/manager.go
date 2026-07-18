@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
+	"YH-FireWall/internal/constant/itfdev"
+	"YH-FireWall/internal/constant/protocol"
 	"YH-FireWall/internal/model/flow"
 	"YH-FireWall/internal/model/rule"
 	"YH-FireWall/internal/pkg/funcs"
@@ -13,26 +16,19 @@ import (
 	"YH-FireWall/internal/pkg/skiplist"
 )
 
-type DevMap interface {
-	Name2Index(name string) (index uint32, exist bool)
-	Index2Name(index uint32) (name string, exist bool)
-}
-
 type Manager struct {
 	mutex  sync.RWMutex
 	config Config
 
 	rules *skiplist.SkipList[string, *rule.Rule]
 	file  *lfile.LockedFile
-	// 设备调用映射
-	devs DevMap
 	//
-	ctx       context.Context
-	cancel    context.CancelFunc
-	flushReqs chan struct{}
+	ctx    context.Context
+	cancel context.CancelFunc
+	dirty  chan struct{}
 }
 
-func New(config Config, devs DevMap) (*Manager, error) {
+func New(config Config) (*Manager, error) {
 	file, err := lfile.Open(config.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open rule file: %w", err)
@@ -56,7 +52,7 @@ func New(config Config, devs DevMap) (*Manager, error) {
 		return a.Compare(b)
 	})
 	for _, rd := range rds {
-		rr, err := rule.Parse(rd, devs.Name2Index)
+		rr, err := rule.Parse(rd, itfdev.Name2Index, protocol.Name2Protocol)
 		if err != nil {
 			continue
 		}
@@ -68,11 +64,9 @@ func New(config Config, devs DevMap) (*Manager, error) {
 		rules:  rules,
 		file:   file,
 
-		devs: devs,
-
-		ctx:       ctx,
-		cancel:    cancel,
-		flushReqs: make(chan struct{}, 20),
+		ctx:    ctx,
+		cancel: cancel,
+		dirty:  make(chan struct{}, 1),
 	}
 	go m.handleSave()
 	return m, nil
@@ -86,30 +80,29 @@ func (m *Manager) Close() error {
 func (m *Manager) list() []*rule.Data {
 	rrs := m.rules.Values()
 	return funcs.Transform(rrs, func(rr *rule.Rule) *rule.Data {
-		return rr.Data(m.devs.Index2Name)
+		return rr.Data(itfdev.Index2Name, protocol.Protocol2Name)
 	})
+}
+
+func (m *Manager) markSaveDirty() {
+	select {
+	case m.dirty <- struct{}{}:
+	default:
+	}
 }
 
 func (m *Manager) handleSave() {
 	for {
 		select {
-		case <-m.flushReqs:
-			// 先消耗所有请求
-		drain:
-			for {
-				select {
-				case <-m.flushReqs:
-				default:
-					// ✅ 跳出 for 循环
-					break drain
-				}
-			}
+		case <-m.dirty:
 			// 开始写入
 			_ = m.save()
+			// 适当睡眠
+			time.Sleep(time.Second)
 		case <-m.ctx.Done():
 			// 要退出了，重新看看有没有写入请求
 			select {
-			case <-m.flushReqs:
+			case <-m.dirty:
 				// 开始写入
 				_ = m.save()
 			default:
@@ -138,13 +131,13 @@ func (m *Manager) Create(ro *rule.Option) (string, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	rr, err := rule.New(ro, m.devs.Name2Index)
+	rr, err := rule.New(ro, itfdev.Name2Index, protocol.Name2Protocol)
 	if err != nil {
 		return "", err
 	}
 	// 插入
 	m.rules.Insert(rr.ID(), rr)
-	m.flushReqs <- struct{}{}
+	m.markSaveDirty()
 	return rr.ID(), nil
 }
 
@@ -155,10 +148,10 @@ func (m *Manager) Update(id string, ro *rule.Option) error {
 	if !exists {
 		return fmt.Errorf("rule %s not exists", id)
 	}
-	if err := rr.Update(ro, m.devs.Name2Index); err != nil {
+	if err := rr.Update(ro, itfdev.Name2Index, protocol.Name2Protocol); err != nil {
 		return err
 	}
-	m.flushReqs <- struct{}{}
+	m.markSaveDirty()
 	return nil
 }
 
@@ -170,7 +163,7 @@ func (m *Manager) Delete(id string) error {
 	if !ok {
 		return fmt.Errorf("rule %s not exists", id)
 	}
-	m.flushReqs <- struct{}{}
+	m.markSaveDirty()
 	return nil
 }
 
@@ -182,7 +175,7 @@ func (m *Manager) Search(id string) *rule.Data {
 	if !exists {
 		return nil
 	}
-	return rr.Data(m.devs.Index2Name)
+	return rr.Data(itfdev.Index2Name, protocol.Protocol2Name)
 }
 
 func (m *Manager) List() []*rule.Data {
@@ -201,10 +194,10 @@ func (m *Manager) Enable(id string, enable bool) error {
 	ro := &rule.Option{
 		Enable: new(enable),
 	}
-	if err := rr.Update(ro, m.devs.Name2Index); err != nil {
+	if err := rr.Update(ro, itfdev.Name2Index, protocol.Name2Protocol); err != nil {
 		return fmt.Errorf("failed to update rule: %w", err)
 	}
-	m.flushReqs <- struct{}{}
+	m.markSaveDirty()
 	return nil
 }
 

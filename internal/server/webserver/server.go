@@ -5,15 +5,15 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 )
 
 type Server struct {
-	app    *fiber.App
+	app *fiber.App
 }
 
 func New(config Config, handler Handler) (*Server, error) {
-	server := &Server{
-	}
+	server := &Server{}
 	if !config.Enable {
 		return server, nil
 	}
@@ -22,6 +22,7 @@ func New(config Config, handler Handler) (*Server, error) {
 	server.app = app
 	go func() {
 		if err := app.Listen(config.Address); err != nil {
+			log.Error(err)
 			server.app = nil
 		}
 	}()

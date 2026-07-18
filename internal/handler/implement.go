@@ -3,7 +3,6 @@ package handler
 import (
 	"YH-FireWall/internal/config"
 	"YH-FireWall/internal/model/conn"
-	"YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
 )
 
@@ -44,11 +43,6 @@ func (h *Handler) GetConfigPath() string {
 }
 func (h *Handler) SetConfig(raw string) error {
 	return h.configer.Write(raw)
-}
-
-// 接口模块
-func (h *Handler) ListInterfaces() []*itf.Itf {
-	return h.itfer.List()
 }
 
 // 协议模块
