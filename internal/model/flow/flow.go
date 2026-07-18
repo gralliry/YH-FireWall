@@ -62,6 +62,20 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 
 	// 判断 ip 协议
 	var packet gopacket.Packet
+	detectProto := func(fallback layers.IPProtocol) layers.IPProtocol {
+		switch {
+		case packet.Layer(layers.LayerTypeTCP) != nil:
+			return layers.IPProtocolTCP
+		case packet.Layer(layers.LayerTypeUDP) != nil:
+			return layers.IPProtocolUDP
+		case packet.Layer(layers.LayerTypeSCTP) != nil:
+			return layers.IPProtocolSCTP
+		case packet.Layer(layers.LayerTypeUDPLite) != nil:
+			return layers.IPProtocolUDPLite
+		default:
+			return fallback
+		}
+	}
 	switch payload[0] >> 4 {
 	case 4:
 		packet = gopacket.NewPacket(payload, layers.LayerTypeIPv4, gopacket.DecodeOptions{
@@ -78,18 +92,7 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 			Release(f)
 			return nil, false
 		}
-		switch {
-			case packet.Layer(layers.LayerTypeTCP) != nil:
-				f.Protocol = layers.IPProtocolTCP
-			case packet.Layer(layers.LayerTypeUDP) != nil:
-				f.Protocol = layers.IPProtocolUDP
-			case packet.Layer(layers.LayerTypeSCTP) != nil:
-				f.Protocol = layers.IPProtocolSCTP
-			case packet.Layer(layers.LayerTypeUDPLite) != nil:
-				f.Protocol = layers.IPProtocolUDPLite
-			default:
-				f.Protocol = layer.Protocol
-			}
+		f.Protocol = detectProto(layer.Protocol)
 	case 6:
 		packet = gopacket.NewPacket(payload, layers.LayerTypeIPv6, gopacket.DecodeOptions{
 			Lazy:   true,
@@ -105,18 +108,7 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 			Release(f)
 			return nil, false
 		}
-		switch {
-			case packet.Layer(layers.LayerTypeTCP) != nil:
-				f.Protocol = layers.IPProtocolTCP
-			case packet.Layer(layers.LayerTypeUDP) != nil:
-				f.Protocol = layers.IPProtocolUDP
-			case packet.Layer(layers.LayerTypeSCTP) != nil:
-				f.Protocol = layers.IPProtocolSCTP
-			case packet.Layer(layers.LayerTypeUDPLite) != nil:
-				f.Protocol = layers.IPProtocolUDPLite
-			default:
-				f.Protocol = layer.NextHeader
-			}
+		f.Protocol = detectProto(layer.NextHeader)
 	default:
 		Release(f)
 		return nil, false

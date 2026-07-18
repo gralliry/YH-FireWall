@@ -19,22 +19,16 @@ func New(pc *process.Process) (*Info, error) {
 	var errs []error
 	var err error
 	info.Pid = pc.Pid
-	info.Exe, err = pc.Exe()
-	if err != nil {
-		errs = append(errs, err)
+	set := func(dst *string, fn func() (string, error)) {
+		*dst, err = fn()
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
-	info.Name, err = pc.Name()
-	if err != nil {
-		errs = append(errs, err)
-	}
-	info.Cmdline, err = pc.Cmdline()
-	if err != nil {
-		errs = append(errs, err)
-	}
-	info.Username, err = pc.Username()
-	if err != nil {
-		errs = append(errs, err)
-	}
+	set(&info.Exe, pc.Exe)
+	set(&info.Name, pc.Name)
+	set(&info.Cmdline, pc.Cmdline)
+	set(&info.Username, pc.Username)
 	return &info, errors.Join(errs...)
 }
 
