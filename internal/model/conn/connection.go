@@ -67,8 +67,6 @@ func New(f *flow.Flow) (*Conn, bool) {
 func Release(c *Conn) {
 	if c != nil {
 		pool.Put(c)
-	} else {
-		panic("Something try to release a nil pointer of conn")
 	}
 }
 

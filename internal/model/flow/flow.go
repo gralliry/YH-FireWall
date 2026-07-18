@@ -128,8 +128,6 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 func Release(f *Flow) {
 	if f != nil {
 		pool.Put(f)
-	} else {
-		panic("Something try to release a nil pointer of flow")
 	}
 }
 
