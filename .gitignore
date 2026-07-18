@@ -19,6 +19,7 @@
 build/
 build.sh
 dist/
+!ui/dist/
 
 # 二进制
 yfw

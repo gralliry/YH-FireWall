@@ -3,15 +3,15 @@ set -e
 
 REPO="gralliry/YH-FireWall"
 VERSION="latest"
-CONFIG_PATH="/etc/yfw/config.yaml"
+CONFIG_PATH="/etc/yfw/config.toml"
 
 usage() {
-    echo "Usage: curl -fsSL https://raw.githubusercontent.com/$REPO/master/install.sh | sudo bash"
-    echo "       curl -fsSL ... | sudo bash -s -- -v v1.0.0 -c /path/to/config.yaml"
+    echo "Usage: curl -fsSL https://raw.githubusercontent.com/$REPO/main/install.sh | sudo bash"
+    echo "       curl -fsSL ... | sudo bash -s -- -v v1.0.0 -c /path/to/config.toml"
     echo ""
     echo "Options:"
     echo "  -v  Version to install (default: latest)"
-    echo "  -c  Config file path  (default: /etc/yfw/config.yaml)"
+    echo "  -c  Config file path  (default: /etc/yfw/config.toml)"
     exit 1
 }
 
@@ -76,27 +76,33 @@ fi
 echo "Installing version: $VERSION"
 
 BASE_URL="https://github.com/$REPO/releases/download/$VERSION"
-FILE="yfw-linux-$ARCH"
 
 # ---------- download ----------
-echo "Downloading $FILE ..."
-curl -fsSL -o "$TMP_DIR/$FILE" "$BASE_URL/$FILE"
-curl -fsSL -o "$TMP_DIR/$FILE.sha256" "$BASE_URL/$FILE.sha256"
-EXPECTED="$(cut -d' ' -f1 "$TMP_DIR/$FILE.sha256")"
-ACTUAL="$(sha256sum "$TMP_DIR/$FILE" | cut -d' ' -f1)"
-if [ "$EXPECTED" != "$ACTUAL" ]; then
-    echo "Error: Checksum mismatch."
-    echo "Expected: $EXPECTED"
-    echo "Got:      $ACTUAL"
-    exit 1
-fi
-echo "Checksum OK."
+download_verify() {
+    local name="$1" out="$TMP_DIR/$name"
+    echo "Downloading $name ..."
+    curl -fsSL -o "$out" "$BASE_URL/$name"
+    curl -fsSL -o "$out.sha256" "$BASE_URL/$name.sha256"
+    expected="$(cut -d' ' -f1 "$out.sha256")"
+    actual="$(sha256sum "$out" | cut -d' ' -f1)"
+    if [ "$expected" != "$actual" ]; then
+        echo "Error: Checksum mismatch for $name."
+        echo "Expected: $expected"
+        echo "Got:      $actual"
+        exit 1
+    fi
+    echo "Checksum OK."
+}
+
+download_verify "yfwd-linux-$ARCH"
+download_verify "yfw-linux-$ARCH"
 
 # ---------- install ----------
-install -m 755 "$TMP_DIR/$FILE" /usr/local/bin/yfw
+install -m 755 "$TMP_DIR/yfwd-linux-$ARCH" /usr/local/bin/yfwd
+install -m 755 "$TMP_DIR/yfw-linux-$ARCH" /usr/local/bin/yfw
 
 # ---------- systemd ----------
-SERVICE_FILE="/etc/systemd/system/yfw.service"
+SERVICE_FILE="/etc/systemd/system/yfwd.service"
 echo "Creating systemd service: $SERVICE_FILE"
 tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
@@ -105,7 +111,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/yfw core -c $CONFIG_PATH
+ExecStart=/usr/local/bin/yfwd -c $CONFIG_PATH
 Restart=always
 User=root
 StandardOutput=journal
@@ -116,14 +122,14 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable yfw
-systemctl start yfw
+systemctl enable yfwd
+systemctl start yfwd
 
 echo ""
 echo "============================================"
 echo "  YH-FireWall $VERSION installed successfully."
 echo "  arch: $ARCH"
 echo "  config:  $CONFIG_PATH"
-echo "  service: systemctl status yfw"
+echo "  service: systemctl status yfwd"
 echo "  client:  yfw help"
 echo "============================================"

@@ -4,7 +4,7 @@ import (
 	"YH-FireWall/internal/model/conn"
 	"YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
-	"embed"
+	"YH-FireWall/ui"
 	"io/fs"
 
 	"github.com/gofiber/fiber/v3"
@@ -15,9 +15,6 @@ import (
 
 	_ "YH-FireWall/internal/server/webserver/docs"
 )
-
-//go:embed static/*
-var staticFS embed.FS
 
 type Handler interface {
 	Version() string
@@ -85,7 +82,7 @@ func newApp(config Config, handler Handler) *fiber.App {
 			Browse: false,
 		}))
 	} else {
-		subFS, err := fs.Sub(staticFS, "static")
+		subFS, err := fs.Sub(ui.FS, "dist")
 		if err != nil {
 			panic(err)
 		}

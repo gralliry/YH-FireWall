@@ -4,18 +4,15 @@
 
 ```bash
 # 编译前端到 dist/
-cd ../../frontend
+cd ../../ui
 npm run build
 
-# 将产物复制到 embed 目录
-cp -r dist/* ../internal/server/webserver/static/
-
-# 编译 Go 二进制（产物在 build/ 下）
+# 编译 Go 二进制（产物在 build/ 下，自动 embed ui/dist/）
 cd ../..
 go build -o build/yfwd ./cmd/yfwd
 ```
 
-前端源码位于 `frontend/`，编译产物输出到 `frontend/dist/`，然后复制到 `internal/server/webserver/static/` 被 Go embed 打包。
+前端源码位于 `ui/`，编译产物输出到 `ui/dist/`。Go 编译时通过 `ui/embed.go` 的 `//go:embed dist/*` 自动嵌入，无需手动复制。
 
 ## Swagger 文档
 
