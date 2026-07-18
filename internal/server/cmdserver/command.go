@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
 )
 
@@ -29,7 +30,7 @@ type Handler interface {
 	GetConfig() string
 	GetConfigPath() string
 	//
-	ListInterfaces() []string
+	ListInterfaces() []itf.Itf
 	ListProtocols() []string
 }
 

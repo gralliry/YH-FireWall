@@ -16,9 +16,10 @@ package webserver
 
 import (
 	_ "YH-FireWall/internal/model/conn"
+	_ "YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // handlePing  godoc
@@ -28,7 +29,7 @@ import (
 // @Success     200  {string}  string  "pong"
 // @Router      /api/ping [get]
 func handlePing() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		return c.SendString("pong")
 	}
 }
@@ -41,7 +42,7 @@ func handlePing() fiber.Handler {
 // @Success     200  {array}   rule.Data
 // @Router      /api/rule [get]
 func handleRuleList(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		cfgs := handler.ListRules()
 		return c.JSON(cfgs)
 	}
@@ -58,9 +59,9 @@ func handleRuleList(handler Handler) fiber.Handler {
 // @Failure     400     {string}  string       "错误信息"
 // @Router      /api/rule [post]
 func handleRuleCreate(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		option := new(rule.Option)
-		if err := c.BodyParser(option); err != nil {
+		if err := c.Bind().Body(option); err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
 		id, err := handler.CreateRule(option)
@@ -83,13 +84,13 @@ func handleRuleCreate(handler Handler) fiber.Handler {
 // @Failure     400     {string}  string      "错误信息"
 // @Router      /api/rule/{id} [put]
 func handleRuleUpdate(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).SendString("id is required")
 		}
 		option := new(rule.Option)
-		if err := c.BodyParser(option); err != nil {
+		if err := c.Bind().Body(option); err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
 		if err := handler.UpdateRule(id, option); err != nil {
@@ -109,7 +110,7 @@ func handleRuleUpdate(handler Handler) fiber.Handler {
 // @Failure     400  {string}  string  "错误信息"
 // @Router      /api/rule/{id} [delete]
 func handleRuleDelete(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).SendString("id is required")
@@ -130,7 +131,7 @@ func handleRuleDelete(handler Handler) fiber.Handler {
 // @Failure     500  {string}  string  "错误信息"
 // @Router      /api/config [get]
 func handleConfigGet(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		return c.SendString(handler.GetConfig())
 	}
 }
@@ -146,7 +147,7 @@ func handleConfigGet(handler Handler) fiber.Handler {
 // @Failure     500   {string}  string  "错误信息"
 // @Router      /api/config [post]
 func handleConfigSet(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		data := string(c.Body())
 		if err := handler.SetConfig(data); err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
@@ -165,7 +166,7 @@ func handleConfigSet(handler Handler) fiber.Handler {
 // @Failure     500  {string}  string  "错误信息"
 // @Router      /api/connection/{id} [delete]
 func handleConnectionClose(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).SendString("id is required")
@@ -185,7 +186,7 @@ func handleConnectionClose(handler Handler) fiber.Handler {
 // @Success     200  {array}   conn.Info
 // @Router      /api/connection [get]
 func handleConnectionList(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		conns := handler.ListConnections()
 		return c.JSON(conns)
 	}
@@ -193,13 +194,13 @@ func handleConnectionList(handler Handler) fiber.Handler {
 
 // handleInterfaceList  godoc
 // @Summary     获取网卡列表
-// @Description 获取当前系统所有网络接口名称
+// @Description 获取当前系统所有网络接口信息
 // @Tags        system
 // @Produce     json
-// @Success     200  {array}  string
+// @Success     200  {array}  itf.Itf
 // @Router      /api/interface [get]
 func handleInterfaceList(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		return c.JSON(handler.ListInterfaces())
 	}
 }
@@ -212,7 +213,7 @@ func handleInterfaceList(handler Handler) fiber.Handler {
 // @Success     200  {array}  string
 // @Router      /api/protocol [get]
 func handleProtocolList(handler Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		return c.JSON(handler.ListProtocols())
 	}
 }

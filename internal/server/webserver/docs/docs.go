@@ -139,7 +139,7 @@ const docTemplate = `{
         },
         "/api/interface": {
             "get": {
-                "description": "获取当前系统所有网络接口名称",
+                "description": "获取当前系统所有网络接口信息",
                 "produces": [
                     "application/json"
                 ],
@@ -153,7 +153,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "type": "string"
+                                "$ref": "#/definitions/YH-FireWall_internal_model_itf.Itf"
                             }
                         }
                     }
@@ -401,6 +401,35 @@ const docTemplate = `{
                 "Forward",
                 "Unknown"
             ]
+        },
+        "YH-FireWall_internal_model_itf.Itf": {
+            "type": "object",
+            "properties": {
+                "addrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "flags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "mac": {
+                    "type": "string"
+                },
+                "mtu": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
         },
         "YH-FireWall_internal_model_proc.Info": {
             "type": "object",

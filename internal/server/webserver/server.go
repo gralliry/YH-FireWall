@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/log"
 )
 
 type Server struct {
@@ -21,7 +21,9 @@ func New(config Config, handler Handler) (*Server, error) {
 	// 启动监听
 	server.app = app
 	go func() {
-		if err := app.Listen(config.Address); err != nil {
+		if err := app.Listen(config.Address, fiber.ListenConfig{
+			DisableStartupMessage: true,
+		}); err != nil {
 			log.Error(err)
 			server.app = nil
 		}

@@ -2,9 +2,9 @@ package handler
 
 import (
 	"YH-FireWall/internal/config"
-	"YH-FireWall/internal/constant/itfdev"
 	"YH-FireWall/internal/constant/protocol"
 	"YH-FireWall/internal/model/conn"
+	"YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
 )
 
@@ -48,8 +48,12 @@ func (h *Handler) SetConfig(raw string) error {
 }
 
 // 协议模块
-func (h *Handler) ListInterfaces() []string {
-	return itfdev.List()
+func (h *Handler) ListInterfaces() []itf.Itf {
+	itfs, err := itf.List()
+	if err != nil {
+		return nil
+	}
+	return itfs
 }
 func (h *Handler) ListProtocols() []string {
 	return protocol.List()

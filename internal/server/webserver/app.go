@@ -2,14 +2,15 @@ package webserver
 
 import (
 	"YH-FireWall/internal/model/conn"
+	"YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
 	"embed"
-	"net/http"
+	"io/fs"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/basicauth"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/basicauth"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/gofiber/swagger"
 
 	_ "YH-FireWall/internal/server/webserver/docs"
@@ -36,21 +37,19 @@ type Handler interface {
 	CloseConnection(id string) error
 	ListConnections() []*conn.Info
 	//
-	ListInterfaces() []string
+	ListInterfaces() []itf.Itf
 	ListProtocols() []string
 }
 
 func newApp(config Config, handler Handler) *fiber.App {
-	// 初始化 Fiber 实例，并关闭默认日志
-	app := fiber.New(fiber.Config{
-		DisableStartupMessage: true, // 隐藏启动信息
-	})
+	app := fiber.New()
+
 	// 设置跨域中间件
 	if config.EnableCORS {
 		app.Use(cors.New(cors.Config{
-			AllowOrigins: "*",
-			AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
-			AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+			AllowOrigins: []string{"*"},
+			AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+			AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		}))
 	}
 	// 设置验证中间件
@@ -81,18 +80,20 @@ func newApp(config Config, handler Handler) *fiber.App {
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	// 前端文件
-	var root http.FileSystem
 	if config.StaticDir != "" {
-		root = http.Dir(config.StaticDir)
+		app.Use(static.New(config.StaticDir, static.Config{
+			Browse: false,
+		}))
 	} else {
-		root = http.FS(staticFS)
+		subFS, err := fs.Sub(staticFS, "static")
+		if err != nil {
+			panic(err)
+		}
+		app.Use(static.New("", static.Config{
+			FS:     subFS,
+			Browse: false,
+		}))
 	}
-	app.All("/*", filesystem.New(filesystem.Config{
-		Root:       root,
-		PathPrefix: "static",
-		Browse:     false,
-		Index:      "index.html",
-	}))
 
 	return app
 }

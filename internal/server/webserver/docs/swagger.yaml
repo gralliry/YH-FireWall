@@ -37,6 +37,25 @@ definitions:
     - Outbound
     - Forward
     - Unknown
+  YH-FireWall_internal_model_itf.Itf:
+    properties:
+      addrs:
+        items:
+          type: string
+        type: array
+      flags:
+        items:
+          type: string
+        type: array
+      index:
+        type: integer
+      mac:
+        type: string
+      mtu:
+        type: integer
+      name:
+        type: string
+    type: object
   YH-FireWall_internal_model_proc.Info:
     properties:
       cmdline:
@@ -244,7 +263,7 @@ paths:
       - connection
   /api/interface:
     get:
-      description: 获取当前系统所有网络接口名称
+      description: 获取当前系统所有网络接口信息
       produces:
       - application/json
       responses:
@@ -252,7 +271,7 @@ paths:
           description: OK
           schema:
             items:
-              type: string
+              $ref: '#/definitions/YH-FireWall_internal_model_itf.Itf'
             type: array
       summary: 获取网卡列表
       tags:
