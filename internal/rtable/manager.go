@@ -28,6 +28,7 @@ type Manager struct {
 	cancel context.CancelFunc
 	dirty  chan struct{}
 	logger *slog.Logger
+	wg     sync.WaitGroup
 }
 
 func New(config Config, logger *slog.Logger) (*Manager, error) {
@@ -72,12 +73,13 @@ func New(config Config, logger *slog.Logger) (*Manager, error) {
 		dirty:  make(chan struct{}, 1),
 		logger: logger,
 	}
-	go m.handleSave()
+	m.wg.Go(m.handleSave)
 	return m, nil
 }
 
 func (m *Manager) Close() error {
 	m.cancel()
+	m.wg.Wait()
 	return m.file.Close()
 }
 

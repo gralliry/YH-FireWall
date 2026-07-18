@@ -11,11 +11,11 @@ type Config struct {
 
 func DefaultConfig() *Config {
 	return &Config{
-		Enable: true,
+		Enable:       true,
 		// 只允许本地
 		Address:      "0.0.0.0:8080",
-		AuthUsername: "admin",
-		AuthPassword: "admin",
+		AuthUsername: "",
+		AuthPassword: "",
 		StaticDir:    "",
 		EnableCORS:   true,
 	}

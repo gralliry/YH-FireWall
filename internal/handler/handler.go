@@ -40,7 +40,7 @@ func New(configPath string) (*Handler, error) {
 
 	// 读取配置管理器
 	var err error
-	h.configer, err = config.New(configPath)
+	h.configer, err = config.New(configPath, slog.Default())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}

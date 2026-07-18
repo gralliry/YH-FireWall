@@ -51,6 +51,8 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 
 	// 解析到flow
 	f := pool.Get().(*Flow)
+	f.InDev = 0
+	f.OutDev = 0
 	if a.InDev != nil {
 		f.InDev = *a.InDev
 	}
@@ -76,7 +78,18 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 			Release(f)
 			return nil, false
 		}
-		f.Protocol = layer.Protocol
+		switch {
+			case packet.Layer(layers.LayerTypeTCP) != nil:
+				f.Protocol = layers.IPProtocolTCP
+			case packet.Layer(layers.LayerTypeUDP) != nil:
+				f.Protocol = layers.IPProtocolUDP
+			case packet.Layer(layers.LayerTypeSCTP) != nil:
+				f.Protocol = layers.IPProtocolSCTP
+			case packet.Layer(layers.LayerTypeUDPLite) != nil:
+				f.Protocol = layers.IPProtocolUDPLite
+			default:
+				f.Protocol = layer.Protocol
+			}
 	case 6:
 		packet = gopacket.NewPacket(payload, layers.LayerTypeIPv6, gopacket.DecodeOptions{
 			Lazy:   true,
@@ -92,7 +105,18 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 			Release(f)
 			return nil, false
 		}
-		f.Protocol = layer.NextHeader
+		switch {
+			case packet.Layer(layers.LayerTypeTCP) != nil:
+				f.Protocol = layers.IPProtocolTCP
+			case packet.Layer(layers.LayerTypeUDP) != nil:
+				f.Protocol = layers.IPProtocolUDP
+			case packet.Layer(layers.LayerTypeSCTP) != nil:
+				f.Protocol = layers.IPProtocolSCTP
+			case packet.Layer(layers.LayerTypeUDPLite) != nil:
+				f.Protocol = layers.IPProtocolUDPLite
+			default:
+				f.Protocol = layer.NextHeader
+			}
 	default:
 		Release(f)
 		return nil, false

@@ -135,7 +135,11 @@ func handleVersion(handler Handler) HandleFunc {
 
 func handleInterfaceList(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
-		for _, i := range handler.ListInterfaces() {
+		ifaces, err := handler.ListInterfaces()
+		if err != nil {
+			return err
+		}
+		for _, i := range ifaces {
 			cmd.Printf("%-4d %-8s %-18s %-5d %v\n", i.Index, i.Name, i.MAC, i.MTU, i.Flags)
 		}
 		return nil

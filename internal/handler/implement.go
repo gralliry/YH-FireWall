@@ -29,7 +29,7 @@ func (h *Handler) ListRules() []*rule.Data {
 }
 
 // 连接模块
-func (h *Handler) ListConnections() []*conn.Info {
+func (h *Handler) ListConnections() ([]*conn.Info, error) {
 	return h.conner.List()
 }
 func (h *Handler) CloseConnection(id string) error {
@@ -48,12 +48,8 @@ func (h *Handler) SetConfig(raw string) error {
 }
 
 // 协议模块
-func (h *Handler) ListInterfaces() []itf.Itf {
-	itfs, err := itf.List()
-	if err != nil {
-		return nil
-	}
-	return itfs
+func (h *Handler) ListInterfaces() ([]itf.Itf, error) {
+	return itf.List()
 }
 func (h *Handler) ListProtocols() []string {
 	return protocol.List()

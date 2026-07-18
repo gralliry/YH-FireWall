@@ -26,7 +26,6 @@ func New(config Config, handler Handler) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on socket: %w", err)
 	}
-	server.handler = handler
 	server.listener = listener
 	go server.acceptConn()
 	return server, nil

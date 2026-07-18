@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"sync"
 
@@ -18,9 +19,10 @@ type Manager struct {
 	file *lfile.LockedFile
 	// 文件内容由conten控制
 	content []byte
+	logger  *slog.Logger
 }
 
-func New(path string) (*Manager, error) {
+func New(path string, logger *slog.Logger) (*Manager, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve path: %w", err)
@@ -45,6 +47,7 @@ func New(path string) (*Manager, error) {
 		path:    absPath,
 		file:    file,
 		content: buf,
+		logger:  logger,
 	}, nil
 }
 
@@ -53,8 +56,9 @@ func (m *Manager) Load() Config {
 	defer m.mutex.RUnlock()
 	// 覆盖默认配置
 	cfg := DefaultConfig()
-	// 直接认定不会出错
-	_ = toml.Unmarshal(m.content, &cfg)
+	if err := toml.Unmarshal(m.content, &cfg); err != nil {
+		m.logger.Warn("config: decode failed, using defaults", slog.String("error", err.Error()))
+	}
 	return *cfg
 }
 

@@ -187,7 +187,10 @@ func handleConnectionClose(handler Handler) fiber.Handler {
 // @Router      /api/connection [get]
 func handleConnectionList(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		conns := handler.ListConnections()
+		conns, err := handler.ListConnections()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
 		return c.JSON(conns)
 	}
 }
@@ -201,7 +204,11 @@ func handleConnectionList(handler Handler) fiber.Handler {
 // @Router      /api/interface [get]
 func handleInterfaceList(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		return c.JSON(handler.ListInterfaces())
+		ifaces, err := handler.ListInterfaces()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		return c.JSON(ifaces)
 	}
 }
 

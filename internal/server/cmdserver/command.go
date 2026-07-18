@@ -30,7 +30,7 @@ type Handler interface {
 	GetConfig() string
 	GetConfigPath() string
 	//
-	ListInterfaces() []itf.Itf
+	ListInterfaces() ([]itf.Itf, error)
 	ListProtocols() []string
 }
 

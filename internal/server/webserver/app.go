@@ -33,9 +33,9 @@ type Handler interface {
 	SetConfig(data string) error
 	//
 	CloseConnection(id string) error
-	ListConnections() []*conn.Info
+	ListConnections() ([]*conn.Info, error)
 	//
-	ListInterfaces() []itf.Itf
+	ListInterfaces() ([]itf.Itf, error)
 	ListProtocols() []string
 }
 

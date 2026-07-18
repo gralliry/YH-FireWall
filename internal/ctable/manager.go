@@ -75,7 +75,7 @@ func (m *Manager) Remove(id string) error {
 	return nil
 }
 
-func (m *Manager) List() []*conn.Info {
+func (m *Manager) List() ([]*conn.Info, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	// Step 1: 提取所有连接（values）
@@ -89,7 +89,7 @@ func (m *Manager) List() []*conn.Info {
 	// 查找所有连接
 	bconnList, err := nnet.Connections("inet")
 	if err != nil {
-		return infoList
+		return nil, err
 	}
 	// 获取网卡ip映射 // 写入map
 	connMap := multikeymap.New[string, *conn.Conn]()
@@ -117,7 +117,7 @@ func (m *Manager) List() []*conn.Info {
 		// 加入
 		infoList = append(infoList, ci)
 	}
-	return infoList
+	return infoList, nil
 }
 
 func (m *Manager) Push(f *flow.Flow) {
