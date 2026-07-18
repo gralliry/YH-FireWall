@@ -23,4 +23,24 @@ dist/
 # 二进制
 yfw
 yfw.exe
+yfwd
+yfwd.exe
 *.exe
+
+# 前端
+node_modules
+dist-ssr
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 编辑器临时文件
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.DS_Store
+*.sw?

@@ -10,7 +10,7 @@ import (
 
 type HandleFunc = func(cmd *cobra.Command, args []string) error
 
-func handlerRuleList(handler Handler) HandleFunc {
+func handleRuleList(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			rules := handler.ListRules()
@@ -28,7 +28,7 @@ func handlerRuleList(handler Handler) HandleFunc {
 	}
 }
 
-func handlerRuleAppend(handler Handler) HandleFunc {
+func handleRuleAppend(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return fmt.Errorf("Usage: append {config}")
@@ -45,7 +45,7 @@ func handlerRuleAppend(handler Handler) HandleFunc {
 	}
 }
 
-func handlerRuleRemove(handler Handler) HandleFunc {
+func handleRuleRemove(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return fmt.Errorf("Usage: remove {id}")
@@ -58,7 +58,7 @@ func handlerRuleRemove(handler Handler) HandleFunc {
 	}
 }
 
-func handlerRuleChange(handler Handler) HandleFunc {
+func handleRuleChange(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) != 2 {
 			return fmt.Errorf("Usage: change {id} {config}")
@@ -75,7 +75,7 @@ func handlerRuleChange(handler Handler) HandleFunc {
 	}
 }
 
-func handlerRuleEnable(handler Handler) HandleFunc {
+func handleRuleEnable(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return fmt.Errorf("Usage: enable {id}")
@@ -88,7 +88,7 @@ func handlerRuleEnable(handler Handler) HandleFunc {
 	}
 }
 
-func handlerRuleDisable(handler Handler) HandleFunc {
+func handleRuleDisable(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return fmt.Errorf("Usage: disable {id}")
@@ -101,7 +101,7 @@ func handlerRuleDisable(handler Handler) HandleFunc {
 	}
 }
 
-func handlerRuleSet(handler Handler) HandleFunc {
+func handleRuleSet(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) != 3 {
 			return fmt.Errorf("Usage: set {id} {key} {value}")
@@ -118,7 +118,7 @@ func handlerRuleSet(handler Handler) HandleFunc {
 	}
 }
 
-func handlerConfigGet(handler Handler) HandleFunc {
+func handleConfigGet(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Config File at %s\n", handler.GetConfigPath())
 		cmd.Println(handler.GetConfig())
@@ -126,9 +126,27 @@ func handlerConfigGet(handler Handler) HandleFunc {
 	}
 }
 
-func handlerVersion(handler Handler) HandleFunc {
+func handleVersion(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {
 		cmd.Println(handler.Version())
+		return nil
+	}
+}
+
+func handleInterfaceList(handler Handler) HandleFunc {
+	return func(cmd *cobra.Command, args []string) error {
+		for _, name := range handler.ListInterfaces() {
+			cmd.Println(name)
+		}
+		return nil
+	}
+}
+
+func handleProtocolList(handler Handler) HandleFunc {
+	return func(cmd *cobra.Command, args []string) error {
+		for _, name := range handler.ListProtocols() {
+			cmd.Println(name)
+		}
 		return nil
 	}
 }

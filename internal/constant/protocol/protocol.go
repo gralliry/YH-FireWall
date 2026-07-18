@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/google/gopacket/layers"
@@ -41,6 +42,15 @@ func init() {
 		name2protocol[name] = p
 		protocol2name[p] = name
 	}
+}
+
+func List() []string {
+	names := make([]string, 0, len(name2protocol))
+	for name := range name2protocol {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func Name2Protocol(name string) (layers.IPProtocol, bool) {

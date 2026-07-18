@@ -35,6 +35,9 @@ type Handler interface {
 	//
 	CloseConnection(id string) error
 	ListConnections() []*conn.Info
+	//
+	ListInterfaces() []string
+	ListProtocols() []string
 }
 
 func newApp(config Config, handler Handler) *fiber.App {
@@ -62,15 +65,17 @@ func newApp(config Config, handler Handler) *fiber.App {
 	api := app.Group("/api")
 
 	// 路由
-	api.Get("/ping", handlerPing())
-	api.Get("/rule", handlerRuleList(handler))
-	api.Post("/rule", handlerRuleCreate(handler))
-	api.Put("/rule/:id", handlerRuleUpdate(handler))
-	api.Delete("/rule/:id", handlerRuleDelete(handler))
-	api.Get("/config", handlerConfigGet(handler))
-	api.Post("/config", handlerConfigSet(handler))
-	api.Delete("/connection/:id", handlerConnectionClose(handler))
-	api.Get("/connection", handlerConnectionList(handler))
+	api.Get("/ping", handlePing())
+	api.Get("/rule", handleRuleList(handler))
+	api.Post("/rule", handleRuleCreate(handler))
+	api.Put("/rule/:id", handleRuleUpdate(handler))
+	api.Delete("/rule/:id", handleRuleDelete(handler))
+	api.Get("/config", handleConfigGet(handler))
+	api.Post("/config", handleConfigSet(handler))
+	api.Delete("/connection/:id", handleConnectionClose(handler))
+	api.Get("/connection", handleConnectionList(handler))
+	api.Get("/interface", handleInterfaceList(handler))
+	api.Get("/protocol", handleProtocolList(handler))
 
 	// Swagger 文档
 	app.Get("/swagger/*", swagger.HandlerDefault)

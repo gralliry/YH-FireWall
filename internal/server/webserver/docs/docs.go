@@ -137,6 +137,29 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/interface": {
+            "get": {
+                "description": "获取当前系统所有网络接口名称",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "获取网卡列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/ping": {
             "get": {
                 "description": "健康检查",
@@ -149,6 +172,29 @@ const docTemplate = `{
                         "description": "pong",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/protocol": {
+            "get": {
+                "description": "获取防火墙支持的所有 IP 协议名称",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "获取协议列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 }

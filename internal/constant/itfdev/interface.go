@@ -2,6 +2,7 @@ package itfdev
 
 import (
 	"net"
+	"sort"
 )
 
 var (
@@ -20,6 +21,15 @@ func Load() error {
 		name2index[i.Name] = index
 	}
 	return nil
+}
+
+func List() []string {
+	names := make([]string, 0, len(name2index))
+	for name := range name2index {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func Index2Name(index uint32) (string, bool) {

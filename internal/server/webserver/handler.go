@@ -21,33 +21,33 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// handlerPing  godoc
+// handlePing  godoc
 // @Summary     Ping
 // @Description 健康检查
 // @Tags        system
 // @Success     200  {string}  string  "pong"
 // @Router      /api/ping [get]
-func handlerPing() fiber.Handler {
+func handlePing() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return c.SendString("pong")
 	}
 }
 
-// handlerRuleList  godoc
+// handleRuleList  godoc
 // @Summary     获取所有规则
 // @Description 返回防火墙规则列表
 // @Tags        rule
 // @Produce     json
 // @Success     200  {array}   rule.Data
 // @Router      /api/rule [get]
-func handlerRuleList(handler Handler) fiber.Handler {
+func handleRuleList(handler Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		cfgs := handler.ListRules()
 		return c.JSON(cfgs)
 	}
 }
 
-// handlerRuleCreate  godoc
+// handleRuleCreate  godoc
 // @Summary     添加规则
 // @Description 添加一条防火墙规则
 // @Tags        rule
@@ -57,7 +57,7 @@ func handlerRuleList(handler Handler) fiber.Handler {
 // @Success     200     {string}  string       "规则ID"
 // @Failure     400     {string}  string       "错误信息"
 // @Router      /api/rule [post]
-func handlerRuleCreate(handler Handler) fiber.Handler {
+func handleRuleCreate(handler Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		option := new(rule.Option)
 		if err := c.BodyParser(option); err != nil {
@@ -71,7 +71,7 @@ func handlerRuleCreate(handler Handler) fiber.Handler {
 	}
 }
 
-// handlerRuleUpdate  godoc
+// handleRuleUpdate  godoc
 // @Summary     更新规则
 // @Description 更新指定 ID 的防火墙规则
 // @Tags        rule
@@ -82,7 +82,7 @@ func handlerRuleCreate(handler Handler) fiber.Handler {
 // @Success     200     {string}  string      "ok"
 // @Failure     400     {string}  string      "错误信息"
 // @Router      /api/rule/{id} [put]
-func handlerRuleUpdate(handler Handler) fiber.Handler {
+func handleRuleUpdate(handler Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
@@ -99,7 +99,7 @@ func handlerRuleUpdate(handler Handler) fiber.Handler {
 	}
 }
 
-// handlerRuleDelete  godoc
+// handleRuleDelete  godoc
 // @Summary     删除规则
 // @Description 删除指定 ID 的防火墙规则
 // @Tags        rule
@@ -108,7 +108,7 @@ func handlerRuleUpdate(handler Handler) fiber.Handler {
 // @Success     200  {string}  string  "ok"
 // @Failure     400  {string}  string  "错误信息"
 // @Router      /api/rule/{id} [delete]
-func handlerRuleDelete(handler Handler) fiber.Handler {
+func handleRuleDelete(handler Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
@@ -121,7 +121,7 @@ func handlerRuleDelete(handler Handler) fiber.Handler {
 	}
 }
 
-// handlerConfigGet  godoc
+// handleConfigGet  godoc
 // @Summary     获取配置
 // @Description 获取当前防火墙配置
 // @Tags        config
@@ -129,13 +129,13 @@ func handlerRuleDelete(handler Handler) fiber.Handler {
 // @Success     200  {string}  string  "配置内容"
 // @Failure     500  {string}  string  "错误信息"
 // @Router      /api/config [get]
-func handlerConfigGet(handler Handler) fiber.Handler {
+func handleConfigGet(handler Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return c.SendString(handler.GetConfig())
 	}
 }
 
-// handlerConfigSet  godoc
+// handleConfigSet  godoc
 // @Summary     更新配置
 // @Description 更新防火墙配置
 // @Tags        config
@@ -145,7 +145,7 @@ func handlerConfigGet(handler Handler) fiber.Handler {
 // @Success     200   {string}  string  "ok"
 // @Failure     500   {string}  string  "错误信息"
 // @Router      /api/config [post]
-func handlerConfigSet(handler Handler) fiber.Handler {
+func handleConfigSet(handler Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		data := string(c.Body())
 		if err := handler.SetConfig(data); err != nil {
@@ -155,7 +155,7 @@ func handlerConfigSet(handler Handler) fiber.Handler {
 	}
 }
 
-// handlerConnectionClose  godoc
+// handleConnectionClose  godoc
 // @Summary     关闭连接
 // @Description 强制关闭指定 ID 的网络连接
 // @Tags        connection
@@ -164,7 +164,7 @@ func handlerConfigSet(handler Handler) fiber.Handler {
 // @Success     200  {string}  string  "ok"
 // @Failure     500  {string}  string  "错误信息"
 // @Router      /api/connection/{id} [delete]
-func handlerConnectionClose(handler Handler) fiber.Handler {
+func handleConnectionClose(handler Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
@@ -177,16 +177,42 @@ func handlerConnectionClose(handler Handler) fiber.Handler {
 	}
 }
 
-// handlerConnectionList  godoc
+// handleConnectionList  godoc
 // @Summary     获取连接列表
 // @Description 获取当前所有活跃的网络连接
 // @Tags        connection
 // @Produce     json
 // @Success     200  {array}   conn.Info
 // @Router      /api/connection [get]
-func handlerConnectionList(handler Handler) fiber.Handler {
+func handleConnectionList(handler Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		conns := handler.ListConnections()
 		return c.JSON(conns)
+	}
+}
+
+// handleInterfaceList  godoc
+// @Summary     获取网卡列表
+// @Description 获取当前系统所有网络接口名称
+// @Tags        system
+// @Produce     json
+// @Success     200  {array}  string
+// @Router      /api/interface [get]
+func handleInterfaceList(handler Handler) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		return c.JSON(handler.ListInterfaces())
+	}
+}
+
+// handleProtocolList  godoc
+// @Summary     获取协议列表
+// @Description 获取防火墙支持的所有 IP 协议名称
+// @Tags        system
+// @Produce     json
+// @Success     200  {array}  string
+// @Router      /api/protocol [get]
+func handleProtocolList(handler Handler) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		return c.JSON(handler.ListProtocols())
 	}
 }

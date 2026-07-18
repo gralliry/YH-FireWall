@@ -242,6 +242,21 @@ paths:
       summary: 关闭连接
       tags:
       - connection
+  /api/interface:
+    get:
+      description: 获取当前系统所有网络接口名称
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      summary: 获取网卡列表
+      tags:
+      - system
   /api/ping:
     get:
       description: 健康检查
@@ -251,6 +266,21 @@ paths:
           schema:
             type: string
       summary: Ping
+      tags:
+      - system
+  /api/protocol:
+    get:
+      description: 获取防火墙支持的所有 IP 协议名称
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      summary: 获取协议列表
       tags:
       - system
   /api/rule:

@@ -1,0 +1,21 @@
+:root {
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.el-input__inner {
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.el-button {
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+#app {
+    height: 100%;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+    overflow: hidden;
+}
