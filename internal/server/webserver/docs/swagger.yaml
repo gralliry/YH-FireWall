@@ -192,7 +192,7 @@ info:
   title: YH FireWall API
   version: "1.0"
 paths:
-  /api/config:
+  /config:
     get:
       description: 获取当前防火墙配置
       produces:
@@ -234,7 +234,7 @@ paths:
       summary: 更新配置
       tags:
       - config
-  /api/connection:
+  /connection:
     get:
       description: 获取当前所有活跃的网络连接
       produces:
@@ -249,7 +249,7 @@ paths:
       summary: 获取连接列表
       tags:
       - connection
-  /api/connection/{id}:
+  /connection/{id}:
     delete:
       description: 强制关闭指定 ID 的网络连接
       parameters:
@@ -272,7 +272,7 @@ paths:
       summary: 关闭连接
       tags:
       - connection
-  /api/interface:
+  /interface:
     get:
       description: 获取当前系统所有网络接口信息
       produces:
@@ -287,7 +287,7 @@ paths:
       summary: 获取网卡列表
       tags:
       - system
-  /api/ping:
+  /ping:
     get:
       description: 健康检查
       responses:
@@ -298,7 +298,7 @@ paths:
       summary: Ping
       tags:
       - system
-  /api/protocol:
+  /protocol:
     get:
       description: 获取防火墙支持的所有 IP 协议名称
       produces:
@@ -313,7 +313,7 @@ paths:
       summary: 获取协议列表
       tags:
       - system
-  /api/rule:
+  /rule:
     get:
       description: 返回防火墙规则列表
       produces:
@@ -353,7 +353,7 @@ paths:
       summary: 添加规则
       tags:
       - rule
-  /api/rule/{id}:
+  /rule/{id}:
     delete:
       description: 删除指定 ID 的防火墙规则
       parameters:

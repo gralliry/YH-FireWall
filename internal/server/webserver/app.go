@@ -7,14 +7,11 @@ import (
 	assets "YH-FireWall/ui"
 	"io/fs"
 
-	"github.com/gofiber/contrib/v3/swaggerui"
+	"github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/basicauth"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/static"
-	"github.com/swaggo/swag"
-
-	_ "YH-FireWall/internal/server/webserver/docs"
 )
 
 type Handler interface {
@@ -75,16 +72,7 @@ func newApp(config Config, handler Handler) (*fiber.App, error) {
 	api.Get("/protocol", handleProtocolList(handler))
 
 	// Swagger 文档
-	doc, err := swag.ReadDoc()
-	if err != nil {
-		doc = `{"error":"failed to read swagger docs"}`
-	}
-	app.Use(swaggerui.New(swaggerui.Config{
-		BasePath:    "/",
-		FileContent: []byte(doc),
-		Path:        "docs",
-		Title:       "YH FireWall API",
-	}))
+	app.Get("/docs/*", swaggo.New())
 
 	// 前端文件
 	if config.StaticDir != "" {

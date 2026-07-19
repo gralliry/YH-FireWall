@@ -23,7 +23,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/config": {
+        "/config": {
             "get": {
                 "description": "获取当前防火墙配置",
                 "produces": [
@@ -87,7 +87,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/connection": {
+        "/connection": {
             "get": {
                 "description": "获取当前所有活跃的网络连接",
                 "produces": [
@@ -110,7 +110,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/connection/{id}": {
+        "/connection/{id}": {
             "delete": {
                 "description": "强制关闭指定 ID 的网络连接",
                 "produces": [
@@ -145,7 +145,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/interface": {
+        "/interface": {
             "get": {
                 "description": "获取当前系统所有网络接口信息",
                 "produces": [
@@ -168,7 +168,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/ping": {
+        "/ping": {
             "get": {
                 "description": "健康检查",
                 "tags": [
@@ -185,7 +185,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/protocol": {
+        "/protocol": {
             "get": {
                 "description": "获取防火墙支持的所有 IP 协议名称",
                 "produces": [
@@ -208,7 +208,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/rule": {
+        "/rule": {
             "get": {
                 "description": "返回防火墙规则列表",
                 "produces": [
@@ -269,7 +269,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/rule/{id}": {
+        "/rule/{id}": {
             "put": {
                 "description": "更新指定 ID 的防火墙规则",
                 "consumes": [

@@ -13,7 +13,7 @@ require (
 	github.com/mdlayher/netlink v1.8.0
 	github.com/shirou/gopsutil/v4 v4.25.9
 	github.com/spf13/cobra v1.10.1
-	github.com/swaggo/swag v1.16.4
+	github.com/swaggo/swag v1.16.6
 )
 
 require (
@@ -23,11 +23,19 @@ require (
 	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/ebitengine/purego v0.9.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/go-openapi/jsonpointer v0.19.5 // indirect
-	github.com/go-openapi/jsonreference v0.19.6 // indirect
+	github.com/go-openapi/jsonpointer v0.24.0 // indirect
+	github.com/go-openapi/jsonreference v0.21.6 // indirect
 	github.com/go-openapi/runtime/server-middleware v0.32.4 // indirect
-	github.com/go-openapi/spec v0.20.4 // indirect
+	github.com/go-openapi/spec v0.22.6 // indirect
 	github.com/go-openapi/swag v0.19.15 // indirect
+	github.com/go-openapi/swag/conv v0.27.0 // indirect
+	github.com/go-openapi/swag/jsonname v0.27.0 // indirect
+	github.com/go-openapi/swag/jsonutils v0.27.0 // indirect
+	github.com/go-openapi/swag/loading v0.27.0 // indirect
+	github.com/go-openapi/swag/stringutils v0.27.0 // indirect
+	github.com/go-openapi/swag/typeutils v0.27.0 // indirect
+	github.com/go-openapi/swag/yamlutils v0.27.0 // indirect
+	github.com/gofiber/contrib/v3/swaggo v1.0.8 // indirect
 	github.com/gofiber/schema v1.8.2 // indirect
 	github.com/gofiber/utils/v2 v2.2.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -43,13 +51,16 @@ require (
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
+	github.com/swaggo/files/v2 v2.0.2 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.72.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect

@@ -20,6 +20,7 @@ import (
 	_ "YH-FireWall/internal/model/conn"
 	_ "YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
+	_ "YH-FireWall/internal/server/webserver/docs"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -29,7 +30,7 @@ import (
 // @Description 健康检查
 // @Tags        system
 // @Success     200  {string}  string  "pong"
-// @Router      /api/ping [get]
+// @Router      /ping [get]
 func handlePing() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		return c.SendString("pong")
@@ -42,7 +43,7 @@ func handlePing() fiber.Handler {
 // @Tags        rule
 // @Produce     json
 // @Success     200  {array}   rule.Data
-// @Router      /api/rule [get]
+// @Router      /rule [get]
 func handleRuleList(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		cfgs := handler.ListRules()
@@ -59,7 +60,7 @@ func handleRuleList(handler Handler) fiber.Handler {
 // @Param       option  body      rule.Option  true  "规则配置"
 // @Success     200     {string}  string       "规则ID"
 // @Failure     400     {string}  string       "错误信息"
-// @Router      /api/rule [post]
+// @Router      /rule [post]
 func handleRuleCreate(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		option := new(rule.Option)
@@ -84,7 +85,7 @@ func handleRuleCreate(handler Handler) fiber.Handler {
 // @Param       option  body      rule.Option true  "规则配置"
 // @Success     200     {string}  string      "ok"
 // @Failure     400     {string}  string      "错误信息"
-// @Router      /api/rule/{id} [put]
+// @Router      /rule/{id} [put]
 func handleRuleUpdate(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id := c.Params("id")
@@ -110,7 +111,7 @@ func handleRuleUpdate(handler Handler) fiber.Handler {
 // @Param       id   path      string  true  "规则ID"
 // @Success     200  {string}  string  "ok"
 // @Failure     400  {string}  string  "错误信息"
-// @Router      /api/rule/{id} [delete]
+// @Router      /rule/{id} [delete]
 func handleRuleDelete(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id := c.Params("id")
@@ -131,7 +132,7 @@ func handleRuleDelete(handler Handler) fiber.Handler {
 // @Produce     plain
 // @Success     200  {string}  string  "配置内容"
 // @Failure     500  {string}  string  "错误信息"
-// @Router      /api/config [get]
+// @Router      /config [get]
 func handleConfigGet(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		return c.SendString(handler.GetConfig())
@@ -147,7 +148,7 @@ func handleConfigGet(handler Handler) fiber.Handler {
 // @Param       data  body      string  true  "JSON 格式的配置内容"
 // @Success     200   {string}  string  "ok"
 // @Failure     500   {string}  string  "错误信息"
-// @Router      /api/config [post]
+// @Router      /config [post]
 func handleConfigSet(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		data := string(c.Body())
@@ -166,7 +167,7 @@ func handleConfigSet(handler Handler) fiber.Handler {
 // @Param       id   path      string  true  "连接ID"
 // @Success     200  {string}  string  "ok"
 // @Failure     500  {string}  string  "错误信息"
-// @Router      /api/connection/{id} [delete]
+// @Router      /connection/{id} [delete]
 func handleConnectionClose(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id := c.Params("id")
@@ -186,7 +187,7 @@ func handleConnectionClose(handler Handler) fiber.Handler {
 // @Tags        connection
 // @Produce     json
 // @Success     200  {array}   conn.Info
-// @Router      /api/connection [get]
+// @Router      /connection [get]
 func handleConnectionList(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		conns, err := handler.ListConnections()
@@ -203,7 +204,7 @@ func handleConnectionList(handler Handler) fiber.Handler {
 // @Tags        system
 // @Produce     json
 // @Success     200  {array}  itf.Itf
-// @Router      /api/interface [get]
+// @Router      /interface [get]
 func handleInterfaceList(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		ifaces, err := handler.ListInterfaces()
@@ -220,7 +221,7 @@ func handleInterfaceList(handler Handler) fiber.Handler {
 // @Tags        system
 // @Produce     json
 // @Success     200  {array}  string
-// @Router      /api/protocol [get]
+// @Router      /protocol [get]
 func handleProtocolList(handler Handler) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		return c.JSON(handler.ListProtocols())
