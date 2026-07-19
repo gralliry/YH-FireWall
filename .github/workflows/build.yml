@@ -43,8 +43,8 @@ jobs:
           mkdir -p build
           for arch in amd64 arm64 arm; do
             echo "Building linux/$arch..."
-            GOARCH=$arch go build -o "build/yfwd-linux-$arch" ./cmd/yfwd
-            GOARCH=$arch go build -o "build/yfw-linux-$arch" ./cmd/yfw
+            GOARCH=$arch go build -o "build/yfwd.$arch" ./cmd/yfwd
+            GOARCH=$arch go build -o "build/yfw.$arch" ./cmd/yfw
           done
 
       - name: Package releases
@@ -53,8 +53,8 @@ jobs:
           for arch in amd64 arm64 arm; do
             echo "Packaging yfw-linux-$arch..."
             mkdir -p "yfw-linux-$arch"
-            cp "yfwd-linux-$arch" "yfw-linux-$arch/yfwd"
-            cp "yfw-linux-$arch" "yfw-linux-$arch/yfw"
+            cp "yfwd.$arch" "yfw-linux-$arch/yfwd"
+            cp "yfw.$arch" "yfw-linux-$arch/yfw"
             cp ../install.sh "yfw-linux-$arch/"
             tar czf "yfw-linux-$arch.tar.gz" "yfw-linux-$arch"
           done
@@ -70,4 +70,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload v1.2.0 build/yfw-linux-*.tar.gz --clobber
+          for f in build/yfw-linux-*.tar.gz; do
+            echo "Uploading $f..."
+            gh release upload v1.2.0 "$f" --clobber
+          done
