@@ -2,14 +2,13 @@ package cmdserver
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"strings"
 	"time"
-
-	"github.com/google/shlex"
 )
 
 type Server struct {
@@ -79,8 +78,8 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
-	args, err := shlex.Split(strings.TrimSpace(command))
-	if err != nil {
+	var args []string
+	if err := json.Unmarshal([]byte(strings.TrimSpace(command)), &args); err != nil {
 		server.WriteString(err.Error())
 		return
 	}
