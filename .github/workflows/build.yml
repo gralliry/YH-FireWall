@@ -16,17 +16,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.3.0
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4.4.0
+        uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: ui/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: ui
 
       - name: Build frontend
@@ -34,7 +34,7 @@ jobs:
         working-directory: ui
 
       - name: Setup Go
-        uses: actions/setup-go@v5.4.0
+        uses: actions/setup-go@v5
         with:
           go-version: "1.26"
 
@@ -45,7 +45,7 @@ jobs:
         run: go build -o build/yfw ./cmd/yfw
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4.6.0
+        uses: actions/upload-artifact@v4
         with:
           name: yfw-binaries
           path: build/
