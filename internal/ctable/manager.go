@@ -20,7 +20,7 @@ type Manager struct {
 	cancel context.CancelFunc
 	mutex  sync.RWMutex
 
-	table   *multikeymap.Map[string, *conn.Conn]
+	table *multikeymap.Map[string, *conn.Conn]
 }
 
 func New() *Manager {
@@ -29,7 +29,7 @@ func New() *Manager {
 		ctx:    ctx,
 		cancel: cancel,
 
-		table:   multikeymap.New[string, *conn.Conn](),
+		table: multikeymap.New[string, *conn.Conn](),
 	}
 	go t.clean()
 	return t
