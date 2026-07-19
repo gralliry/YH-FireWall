@@ -26,10 +26,6 @@ dist/
 !ui/dist/
 
 # 二进制
-yfw
-yfw.exe
-yfwd
-yfwd.exe
 *.exe
 
 # 前端
