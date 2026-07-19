@@ -76,14 +76,11 @@ func newApp(config Config, handler Handler) (*fiber.App, error) {
 	api.Get("/protocol", handleProtocolList(handler))
 
 	// Swagger 文档
-	app.Get("/docs/swagger.json", func(c fiber.Ctx) error {
-		return c.SendString(swag.ReadDoc())
-	})
 	app.Use(swaggerui.New(swaggerui.Config{
-		BasePath: "/",
-		FilePath: "./docs/swagger.json",
-		Path:     "docs",
-		Title:    "YH FireWall API",
+		BasePath:    "/",
+		FileContent: []byte(swag.ReadDoc()),
+		Path:        "docs",
+		Title:       "YH FireWall API",
 	}))
 
 	// 前端文件
