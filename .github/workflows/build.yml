@@ -38,20 +38,26 @@ jobs:
         with:
           go-version: "1.26"
 
-      - name: Build yfwd
-        run: go build -o build/yfwd ./cmd/yfwd
-
-      - name: Build yfw
-        run: go build -o build/yfw ./cmd/yfw
-
-      - name: Package release
+      - name: Build binaries
         run: |
-          RELEASE_NAME="yfw-linux-amd64"
-          mkdir -p "$RELEASE_NAME"
-          cp build/yfwd "$RELEASE_NAME/"
-          cp build/yfw "$RELEASE_NAME/"
-          cp install.sh "$RELEASE_NAME/"
-          tar czf "build/$RELEASE_NAME.tar.gz" "$RELEASE_NAME"
+          mkdir -p build
+          for arch in amd64 arm64 arm; do
+            echo "Building linux/$arch..."
+            GOARCH=$arch go build -o "build/yfwd-linux-$arch" ./cmd/yfwd
+            GOARCH=$arch go build -o "build/yfw-linux-$arch" ./cmd/yfw
+          done
+
+      - name: Package releases
+        run: |
+          cd build
+          for arch in amd64 arm64 arm; do
+            echo "Packaging yfw-linux-$arch..."
+            mkdir -p "yfw-linux-$arch"
+            cp "yfwd-linux-$arch" "yfw-linux-$arch/yfwd"
+            cp "yfw-linux-$arch" "yfw-linux-$arch/yfw"
+            cp ../install.sh "yfw-linux-$arch/"
+            tar czf "yfw-linux-$arch.tar.gz" "yfw-linux-$arch"
+          done
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v7.0.1
