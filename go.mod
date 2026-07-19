@@ -5,6 +5,7 @@ go 1.26
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/florianl/go-nfqueue v1.3.2
+	github.com/gofiber/contrib/v3/swaggerui v1.0.9
 	github.com/gofiber/fiber/v3 v3.4.0
 	github.com/gofrs/flock v0.13.0
 	github.com/google/gopacket v1.1.19
