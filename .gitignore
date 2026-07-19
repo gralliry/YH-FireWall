@@ -5,6 +5,10 @@
 # 自动生成的索引和缓存
 .codegraph/
 .learnings/
+.claude/
+.cursor/
+.windsurf/
+.copilot-*
 
 # 数据文件
 **/*.db
