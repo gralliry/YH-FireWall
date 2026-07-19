@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/fs"
 
-	"github.com/gofiber/contrib/v3/swaggerui"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/basicauth"
 	"github.com/gofiber/fiber/v3/middleware/cors"
@@ -76,12 +75,14 @@ func newApp(config Config, handler Handler) (*fiber.App, error) {
 	api.Get("/protocol", handleProtocolList(handler))
 
 	// Swagger 文档
-	app.Use(swaggerui.New(swaggerui.Config{
-		BasePath:    "/",
-		FileContent: []byte(swag.ReadDoc()),
-		Path:        "docs",
-		Title:       "YH FireWall API",
-	}))
+	app.Get("/docs/swagger.json", func(c fiber.Ctx) error {
+		doc, err := swag.ReadDoc()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		return c.SendString(doc)
+	})
+	app.Get("/docs", serveSwaggerUI)
 
 	// 前端文件
 	if config.StaticDir != "" {
@@ -100,4 +101,30 @@ func newApp(config Config, handler Handler) (*fiber.App, error) {
 	}
 
 	return app, nil
+}
+
+const swaggerHTML = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>YH FireWall API</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui.min.css">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-bundle.min.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/docs/swagger.json',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+    })
+  </script>
+</body>
+</html>`
+
+func serveSwaggerUI(c fiber.Ctx) error {
+	c.Set("Content-Type", "text/html; charset=utf-8")
+	return c.SendString(swaggerHTML)
 }
