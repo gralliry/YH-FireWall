@@ -3,185 +3,195 @@
 <p align="center">
   <img alt="Go Version" src="https://img.shields.io/github/go-mod/go-version/gralliry/YH-FireWall?style=flat-square">
   <img alt="License" src="https://img.shields.io/github/license/gralliry/YH-FireWall?style=flat-square">
-  <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/gralliry/YH-FireWall/build.yml?style=flat-square">
 </p>
 
 <p align="center">
-  A lightweight firewall written in Go, using <b>iptables</b> + <b>NFQUEUE</b> for packet filtering.
+  A lightweight stateful firewall written in Go, using <b>iptables</b> + <b>NFQUEUE</b> for packet filtering.
 </p>
+
+---
+
+## Overview
+
+YH-FireWall is a Linux firewall daemon that intercepts packets at the netfilter level and applies allow/deny rules. It provides both a command-line client and a web management interface.
+
+It is **not** a full router firewall — it does not handle NAT, port forwarding, or DMZ. It filters packets based on IP, port, protocol, and network interface.
+
+Two programs work together:
+
+- **yfwd** — the firewall daemon, runs as root, does the actual packet filtering
+- **yfw** — CLI client, sends commands to yfwd over a Unix socket (`/tmp/yfw.sock`)
+
+You start `yfwd` first, then use `yfw` to manage rules.
 
 ---
 
 ## Features
 
-- **Pure Go** — single binary, no runtime dependencies
-- **iptables + NFQUEUE** — intercepts packets at the netfilter level
-- **Rule engine** — priority-based rule matching with IP, port, protocol, and interface filtering
-- **Connection tracking** — stateful tracking of TCP/UDP connections
-- **Dynamic control** — enable, disable, add, or remove rules at runtime without restart
-- **Command-line client** — manage everything from the terminal
-- **Web panel** — Vue-based web management interface
-- **Swagger API** — OpenAPI documentation at `/docs`
+- **iptables + NFQUEUE** — intercepts traffic at the kernel netfilter level
+- **Stateful connection tracking** — TCP/UDP connections tracked with automatic expiration
+- **Rule engine** — priority-based matching: rules evaluated in order, first match wins
+- **Allow/deny policy** — each rule has an `accept` field (`true` = allow, `false` = deny)
+- **Default policy** — when no rule matches, the configurable `default_accept` setting applies
+- **Dynamic control** — add, remove, enable, disable, or modify rules at runtime without restart
+- **Partial updates** — only send the fields you want to change
+- **Web management panel** — Vue 3 interface available at `http://<server-ip>:8080`
+- **Swagger API** — OpenAPI documentation at `http://<server-ip>:8080/docs`
 
 ---
 
 ## Install
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/install.sh | sudo bash
-```
-
-Or pin a specific version, or change the config file path:
+Download the latest release tarball from the [releases page](https://github.com/gralliry/YH-FireWall/releases), then:
 
 ```bash
-# Latest version, custom config path
-curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/install.sh | sudo bash -s -- -c /custom/config.toml
-
-# Specific version, default config path
-curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/install.sh | sudo bash -s -- -v v1.0.0
-
-# Both
-curl -fsSL https://raw.githubusercontent.com/gralliry/YH-FireWall/master/install.sh | sudo bash -s -- -v v1.0.0 -c /custom/config.toml
+tar xzf yfw-linux-*.tar.gz
+cd yfw-linux-*
+sudo ./install.sh
 ```
-
-The installer auto-detects your architecture, downloads the latest release, verifies the checksum, installs the binary, and sets up a systemd service.
-
-Two separate binaries:
-- `yfwd` — the firewall daemon (runs as a service)
-- `yfw` — CLI client to manage the daemon
 
 ### Requirements
 
-- Linux with `iptables` and `libnetfilter_queue`
+- Linux with `iptables` and `libnetfilter_queue` kernel module
 - Root privileges
 
 ---
 
-## Build
+## Build from source
+
+*For developers only.*
 
 ```bash
-# Install swagger CLI (first time only)
-go install github.com/swaggo/swag/cmd/swag@latest
-
-# Build everything
 ./build.sh
 ```
 
-`build.sh` runs: swagger generation → frontend build (npm) → Go backend compilation. Output goes to `build/`.
+Output: `build/yfwd` (daemon) and `build/yfw` (CLI client).
+
+---
+
+## Quick Start
+
+```bash
+# 1. Add a rule
+./yfw rule append '{"accept":true,"protocols":"tcp","dstPorts":"80,443"}'
+
+# 2. View all rules
+./yfw rule list
+
+# 3. Open the web interface
+# http://<your-server-ip>:8080
+```
 
 ---
 
 ## Usage
 
+### CLI commands
+
 ```bash
-# Start the daemon
-sudo yfwd -c /etc/yfw/config.toml
+# List all rules, or show a specific rule by ID
+yfw rule list <id>
+yfw rule list abc123
 
-# List all rules
-yfw rule list
+# Add a new rule in JSON format
+yfw rule append <json>
+yfw rule append '{"accept":true,"dstPorts":"80,443","protocols":"tcp"}'
 
-# Get a specific rule
-yfw rule list <rule_id>
+# Modify an existing rule (partial update, only send fields to change)
+yfw rule change <id> <json>
+yfw rule change abc123 '{"comment":"updated","priority":100}'
 
-# Add a rule
-yfw rule add '{"srcPrefixs":"192.168.1.0/24","dstPortRanges":"80","accept":true}'
+# Set a single field by key and value
+yfw rule set <id> <key> <value>
+yfw rule set abc123 accept false
 
-# Modify a rule (partial update)
-yfw rule change <rule_id> '{"comment":"updated"}'
-
-# Enable / disable a rule
-yfw rule enable <rule_id>
-yfw rule disable <rule_id>
+# Enable or disable a rule (disabled rules are skipped during matching)
+yfw rule enable <id>
+yfw rule disable <id>
+yfw rule enable abc123
 
 # Remove a rule
-yfw rule remove <rule_id>
+yfw rule remove <id>
+yfw rule remove abc123
 
-# View config
+# View daemon configuration
 yfw config
 
-# Version
+# List network interfaces (useful for inDevs/outDevs fields)
+yfw interfaces
+
+# List supported protocols (useful for protocols field)
+yfw protocols
+
+# Show version
 yfw version
 ```
 
-### Rule fields
+### Service Management
 
-Rules use codec strings for IP/port/protocol/device fields:
+After running `install.sh`, the daemon is managed by systemd:
 
-| Field | Type | Example |
-|-------|------|---------|
-| `group` | `string` | `"web"` |
-| `comment` | `string` | `"Allow HTTP"` |
-| `accept` | `bool` | `true` / `false` |
-| `priority` | `int` | `100` |
-| `enable` | `bool` | `true` / `false` |
-| `srcPrefixs` | `string` | `"192.168.1.0/24,10.0.0.0/8"` |
-| `dstPrefixs` | `string` | `"0.0.0.0/0"` |
-| `srcPortRanges` | `string` | `"1024-65535"` |
-| `dstPortRanges` | `string` | `"80,443"` |
-| `inDevs` | `string` | `"eth0,eth1"` |
-| `outDevs` | `string` | `"eth0"` |
-| `protocols` | `string` | `"tcp,udp"` |
+```bash
+systemctl status yfwd       # status
+systemctl start yfwd        # start
+systemctl stop yfwd         # stop
+systemctl restart yfwd      # restart
+journalctl -u yfwd -f       # follow logs
+```
 
-All codec fields accept comma/space/semicolon/newline as separators.
+### Rule JSON fields
 
-### Web API
+| Field | Type | Description |
+|-------|------|-------------|
+| `group` | string | Rule group label for organization |
+| `comment` | string | Human-readable description |
+| `accept` | bool | `true` = allow, `false` = deny |
+| `priority` | int | Higher number = higher precedence, checked first |
+| `enable` | bool | If `false`, the rule is skipped during matching |
+| `srcNets` | string | Source IP or CIDR, comma-separated (e.g. `10.0.0.0/8,192.168.1.0/24`) |
+| `dstNets` | string | Destination IP or CIDR, comma-separated |
+| `srcPorts` | string | Source port, single port or range, comma-separated (e.g. `1024-65535`) |
+| `dstPorts` | string | Destination port, single port or range, comma-separated (e.g. `80,443,3000-4000`) |
+| `inDevs` | string | Ingress network interface name(s), comma-separated (e.g. `eth0,eth1`) |
+| `outDevs` | string | Egress network interface name(s), comma-separated |
+| `protocols` | string | IP protocol name(s), comma-separated (e.g. `tcp,udp,icmp`) |
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/ping` | Health check |
-| `GET` | `/api/rule` | List rules |
-| `POST` | `/api/rule` | Add rule |
-| `PUT` | `/api/rule/{id}` | Update rule |
-| `DELETE` | `/api/rule/{id}` | Delete rule |
-| `GET` | `/api/config` | Get config |
-| `POST` | `/api/config` | Update config |
-| `GET` | `/api/connection` | List active connections |
-| `DELETE` | `/api/connection/{id}` | Close a connection |
-| `GET` | `/api/interface` | List network interfaces |
-| `GET` | `/docs` | Swagger UI |
+All fields are optional in `append` and `change` — only send what you need. Separators can be comma, space, semicolon, or newline.
+
+### Rule matching
+
+1. Rules are sorted by: enabled first, then by priority (higher number first)
+2. The first matching rule wins — if a rule matches, later rules are not evaluated
+3. If no rule matches, the **default policy** (configurable in `config.toml`) is applied — `default_accept = true` allows by default
 
 ---
 
 ## Configuration
 
-The config file lives at `/etc/yfw/config.toml`:
+Use `yfw config` to view the current configuration.
 
 ```toml
-version = "1.0.0"
+version = "1.0.0"          # Config file version (reserved)
 
 [queue]
-no = 0
-name = "yfw"
+num = 0                    # NFQUEUE queue number
+name = "yfw"               # iptables rule comment
 
 [web]
-enable = true
-address = ":8080"
-auth_username = "admin"
-auth_password = "admin"
-enable_cors = true
+enable = true              # Enable the web management interface
+address = ":8080"          # Listen address (all interfaces, port 8080)
+auth_username = ""         # Basic auth username (empty = no auth)
+auth_password = ""         # Basic auth password
+enable_cors = true         # Enable CORS for API access
+static_dir = ""            # Frontend static file directory (empty = embedded files)
 
 [cmd]
-socket_path = "/tmp/yfw.sock"
+socket_path = "/tmp/yfw.sock"  # Unix socket path for CLI communication
 
 [rule]
-path = "/etc/yfw/rule.json"
-default_accept = true
+path = "/etc/yfw/rule.json"    # Rule persistence file
+default_accept = true          # Default policy when no rule matches
 ```
-
----
-
-## Service Management
-
-```bash
-# Managed by systemd (after install)
-systemctl status yfwd     # check status
-systemctl start yfwd      # start
-systemctl stop yfwd       # stop
-systemctl restart yfwd    # restart
-journalctl -u yfwd -f     # follow logs
-```
-
----
 
 ## License
 
