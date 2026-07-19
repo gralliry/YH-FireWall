@@ -4,8 +4,7 @@ import (
 	"YH-FireWall/internal/model/conn"
 	"YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
-	"YH-FireWall/ui"
-	"fmt"
+	assets "YH-FireWall/ui"
 	"io/fs"
 
 	"github.com/gofiber/contrib/v3/swaggerui"
@@ -93,9 +92,9 @@ func newApp(config Config, handler Handler) (*fiber.App, error) {
 			Browse: false,
 		}))
 	} else {
-		subFS, err := fs.Sub(ui.FS, "dist")
+		subFS, err := fs.Sub(assets.WebServerStaticFS, "dist")
 		if err != nil {
-			return nil, fmt.Errorf("frontend dist not found: %w (run 'npm run build' first)", err)
+			return nil, err
 		}
 		app.Use(static.New("", static.Config{
 			FS:     subFS,

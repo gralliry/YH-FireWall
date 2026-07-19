@@ -1,3 +1,4 @@
+basePath: /api
 definitions:
   YH-FireWall_internal_model_conn.Info:
     properties:
@@ -178,8 +179,18 @@ definitions:
     - IPProtocolMPLSInIP
   netip.AddrPort:
     type: object
+host: localhost:8080
 info:
-  contact: {}
+  contact:
+    email: support@yh-firewall.com
+    name: API Support
+  description: YH FireWall 防火墙管理接口
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: YH FireWall API
+  version: "1.0"
 paths:
   /api/config:
     get:

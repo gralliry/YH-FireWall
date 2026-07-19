@@ -1,3 +1,5 @@
+//go:generate swag init -g handler.go -o docs --parseDependency --parseDepth 2
+
 package webserver
 
 // @title           YH FireWall API

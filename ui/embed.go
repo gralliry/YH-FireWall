@@ -1,6 +1,6 @@
-package ui
+package assets
 
 import "embed"
 
-//go:embed dist/*
-var FS embed.FS
+//go:embed dist
+var WebServerStaticFS embed.FS
