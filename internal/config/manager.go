@@ -8,7 +8,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"YH-FireWall/internal/pkg/lfile"
+	"YH-FireWall/internal/pkg/cfile"
 )
 
 type Manager struct {
@@ -16,10 +16,8 @@ type Manager struct {
 	//
 	path string
 	// 文件只读一次，写入多次
-	file *lfile.LockedFile
-	// 文件内容由conten控制
-	content []byte
-	logger  *slog.Logger
+	file   *cfile.CacheFile
+	logger *slog.Logger
 }
 
 func New(path string, logger *slog.Logger) (*Manager, error) {
@@ -27,27 +25,22 @@ func New(path string, logger *slog.Logger) (*Manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve path: %w", err)
 	}
-	file, err := lfile.Open(absPath)
+	file, err := cfile.Open(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config file: %w", err)
 	}
 	// 读取数据流
-	buf, err := file.Read()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
-	}
+	buf := file.Read()
 	// 当不为空时，验证buf合法性
-	if len(buf) > 0 {
-		if err := toml.Unmarshal(buf, new(Config)); err != nil {
-			return nil, fmt.Errorf("failed to decode config file: %w", err)
-		}
+	// if len(buf) > 0 {} // 当为json时，期待{}，这里会报错
+	if err := toml.Unmarshal(buf, new(Config)); err != nil {
+		return nil, fmt.Errorf("failed to decode config file: %w", err)
 	}
 	// 返回
 	return &Manager{
-		path:    absPath,
-		file:    file,
-		content: buf,
-		logger:  logger,
+		path:   absPath,
+		file:   file,
+		logger: logger,
 	}, nil
 }
 
@@ -56,7 +49,7 @@ func (m *Manager) Load() Config {
 	defer m.mutex.RUnlock()
 	// 覆盖默认配置
 	cfg := DefaultConfig()
-	if err := toml.Unmarshal(m.content, &cfg); err != nil {
+	if err := toml.Unmarshal(m.file.Read(), &cfg); err != nil {
 		m.logger.Warn("config: decode failed, using defaults", slog.String("error", err.Error()))
 	}
 	return *cfg
@@ -69,24 +62,21 @@ func (m *Manager) Path() string {
 func (m *Manager) Read() string {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	return string(m.content)
+	return string(m.file.Read())
 }
 
 func (m *Manager) Write(data string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-
+	content := []byte(data)
 	// 验证是否满足格式
-	if _, err := toml.Decode(data, new(Config)); err != nil {
+	if err := toml.Unmarshal(content, new(Config)); err != nil {
 		return fmt.Errorf("failed to decode config: %w", err)
 	}
 	// 尝试写入
-	content := []byte(data)
 	if err := m.file.Write(content); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
-	// 写入成功
-	m.content = content
 	return nil
 }
 
@@ -94,5 +84,6 @@ func (m *Manager) Close() error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	return m.file.Close()
+	m.file.Close()
+	return nil
 }

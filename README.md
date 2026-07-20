@@ -22,8 +22,6 @@ Two programs work together:
 - **yfwd** — the firewall daemon, runs as root, does the actual packet filtering
 - **yfw** — CLI client, sends commands to yfwd over a Unix socket (`/tmp/yfw.sock`)
 
-You start `yfwd` first, then use `yfw` to manage rules.
-
 ---
 
 ## Features
@@ -33,7 +31,7 @@ You start `yfwd` first, then use `yfw` to manage rules.
 - **Rule engine** — priority-based matching: rules evaluated in order, first match wins
 - **Allow/deny policy** — each rule has an `accept` field (`true` = allow, `false` = deny)
 - **Default policy** — when no rule matches, the configurable `default_accept` setting applies
-- **Dynamic control** — add, remove, enable, disable, or modify rules at runtime without restart
+- **Dynamic control** — add, remove, or modify rules at runtime without restart
 - **Partial updates** — only send the fields you want to change
 - **Web management panel** — Vue 3 interface available at `http://<server-ip>:8080`
 - **Swagger API** — OpenAPI documentation at `http://<server-ip>:8080/docs`
@@ -57,9 +55,9 @@ sudo ./install.sh
 
 ---
 
-## Build from source
+## Build
 
-*For developers only.*
+*For developers.*
 
 ```bash
 ./build.sh
@@ -104,11 +102,6 @@ yfw rule change abc123 '{"comment":"updated","priority":100}'
 # Set a single field by key and value
 yfw rule set <id> <key> <value>
 yfw rule set abc123 accept false
-
-# Enable or disable a rule (disabled rules are skipped during matching)
-yfw rule enable <id>
-yfw rule disable <id>
-yfw rule enable abc123
 
 # Remove a rule
 yfw rule remove <id>

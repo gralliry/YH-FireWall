@@ -21,9 +21,6 @@ func (h *Handler) DeleteRule(id string) error {
 func (h *Handler) SearchRule(id string) *rule.Data {
 	return h.ruler.Search(id)
 }
-func (h *Handler) EnableRule(id string, enable bool) error {
-	return h.ruler.Enable(id, enable)
-}
 func (h *Handler) ListRules() []*rule.Data {
 	return h.ruler.List()
 }

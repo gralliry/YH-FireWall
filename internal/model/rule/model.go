@@ -32,6 +32,8 @@ type Data struct {
 	Option
 }
 
+
+
 type Rule struct {
 	id       string
 	group    string

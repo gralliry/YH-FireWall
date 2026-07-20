@@ -23,8 +23,6 @@ type Handler interface {
 
 	SearchRule(id string) *rule.Data
 	ListRules() []*rule.Data
-
-	EnableRule(id string, enable bool) error
 	//
 	GetConfig() string
 	SetConfig(data string) error

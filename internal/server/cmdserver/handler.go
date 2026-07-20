@@ -75,31 +75,7 @@ func handleRuleChange(handler Handler) HandleFunc {
 	}
 }
 
-func handleRuleEnable(handler Handler) HandleFunc {
-	return func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return fmt.Errorf("Usage: enable {id}")
-		}
-		if err := handler.EnableRule(args[0], true); err != nil {
-			return fmt.Errorf("No such rule: %w", err)
-		}
-		cmd.Println("ok")
-		return nil
-	}
-}
 
-func handleRuleDisable(handler Handler) HandleFunc {
-	return func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return fmt.Errorf("Usage: disable {id}")
-		}
-		if err := handler.EnableRule(args[0], false); err != nil {
-			return fmt.Errorf("No such rule: %w", err)
-		}
-		cmd.Println("ok")
-		return nil
-	}
-}
 
 func handleRuleSet(handler Handler) HandleFunc {
 	return func(cmd *cobra.Command, args []string) error {

@@ -24,8 +24,6 @@ type Handler interface {
 	SearchRule(id string) *rule.Data
 	ListRules() []*rule.Data
 
-	EnableRule(id string, enable bool) error
-
 	//
 	GetConfig() string
 	GetConfigPath() string
@@ -52,8 +50,6 @@ func newCmd(handler Handler) *cobra.Command {
 			`yfw rule append '{"accept":true,"srcNets":"10.0.0.0/8"}'`,
 			"yfw rule remove RULE_ID",
 			`yfw rule change RULE_ID '{"accept":false}'`,
-			"yfw rule enable RULE_ID",
-			"yfw rule disable RULE_ID",
 		),
 	}
 	cmdRuleList := &cobra.Command{
@@ -107,28 +103,12 @@ func newCmd(handler Handler) *cobra.Command {
 		),
 		RunE: handleRuleSet(handler),
 	}
-	cmdRuleEnable := &cobra.Command{
-		Use:     "enable",
-		Aliases: []string{"e", "en"},
-		Short:   "Enable a firewall rule",
-		Example: str("yfw rule enable RULE_ID"),
-		RunE:    handleRuleEnable(handler),
-	}
-	cmdRuleDisable := &cobra.Command{
-		Use:     "disable",
-		Aliases: []string{"d", "dis"},
-		Short:   "Disable a firewall rule",
-		Example: str("yfw rule disable RULE_ID"),
-		RunE:    handleRuleDisable(handler),
-	}
 	cmdRule.AddCommand(
 		cmdRuleList,
 		cmdRuleAppend,
 		cmdRuleRemove,
 		cmdRuleChange,
 		cmdRuleSet,
-		cmdRuleEnable,
-		cmdRuleDisable,
 	)
 
 	cmdConfig := &cobra.Command{
