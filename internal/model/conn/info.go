@@ -36,7 +36,7 @@ func (c *Conn) Info(pid int32) *Info {
 
 		Direction: c.direction,
 
-		EstablishTime: c.establishTime.Unix(),
+		EstablishTime: c.establishTime,
 	}
 	if pinfo, err := proc.NewByPID(pid); err == nil {
 		info.Process = *pinfo

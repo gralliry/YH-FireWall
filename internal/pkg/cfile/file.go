@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/gofrs/flock"
 )
 
 type CacheFile struct {
@@ -14,6 +16,7 @@ type CacheFile struct {
 	waitg sync.WaitGroup
 
 	path  string
+	lock  *flock.Flock
 	cache []byte
 	dirty chan struct{}
 
@@ -25,17 +28,34 @@ func Open(path string) (lf *CacheFile, err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDONLY, 0644)
+	// 获取文件锁
+	lock := flock.New(path + ".lock")
+	locked, err := lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("failed to acquire lock: %w", err)
+	}
+	if !locked {
+		return nil, fmt.Errorf("file is locked by another process")
+	}
+	defer func() {
+		if err != nil {
+			lock.Unlock()
+		}
+	}()
+	// 打开文件
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
+	// 读取文件内容
 	buf, err := io.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 	lf = &CacheFile{
 		path:   path,
+		lock:   lock,
 		cache:  buf,
 		dirty:  make(chan struct{}, 1),
 		closed: false,
@@ -71,15 +91,13 @@ func (f *CacheFile) Write(buf []byte) error {
 func (f *CacheFile) handle() {
 	tmpfile := f.path + ".tmp"
 	for range f.dirty {
-		// 不要使用Read()去替换这里
 		f.mutex.RLock()
 		buf := bytes.Clone(f.cache)
 		f.mutex.RUnlock()
-		// 文件写入不用加锁，f.dirty保证了唯一操作
+
 		if err := os.WriteFile(tmpfile, buf, 0644); err != nil {
 			continue
 		}
-		// Linux 系统 中 rename会覆盖
 		if err := os.Rename(tmpfile, f.path); err != nil {
 			continue
 		}
@@ -94,5 +112,7 @@ func (f *CacheFile) Close() {
 		close(f.dirty)
 		f.mutex.Unlock()
 		f.waitg.Wait()
+
+		f.lock.Unlock()
 	})
 }

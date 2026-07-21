@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/gopacket/layers"
@@ -22,20 +23,20 @@ type Conn struct {
 	// 连接信息
 	protocol layers.IPProtocol
 
+	direction flow.Direction
+
 	lAddrPort netip.AddrPort
 	rAddrPort netip.AddrPort
 
-	direction flow.Direction
-
 	// 状态信息
-	establishTime time.Time
-	activeTime    time.Time
-	isClosed      bool
+	establishTime int64
+	activeTime    atomic.Int64
+	closed        atomic.Bool
 }
 
 func New(f *flow.Flow) (*Conn, bool) {
 	// 校验flow是否是连接包
-	if !f.IsConnection() {
+	if !f.IsConnPackage() {
 		return nil, false
 	}
 	// 获取conn
@@ -58,9 +59,10 @@ func New(f *flow.Flow) (*Conn, bool) {
 		return nil, false
 	}
 	//
-	c.establishTime = time.Now()
-	c.activeTime = time.Now()
-	c.isClosed = false
+	cur := time.Now().UnixMilli()
+	c.establishTime = cur
+	c.activeTime.Store(cur)
+	c.closed.Store(false)
 	return c, true
 }
 
@@ -75,19 +77,20 @@ func (c *Conn) ID() string {
 }
 
 func (c *Conn) Active() {
-	c.activeTime = time.Now()
+	c.activeTime.Store(time.Now().Unix())
 }
 
 func (c *Conn) Close() {
-	c.isClosed = true
+	c.closed.Store(true)
 }
 
 func (c *Conn) Closed() bool {
-	return c.isClosed
+	return c.closed.Load()
 }
 
 func (c *Conn) Expired() bool {
-	return time.Since(c.activeTime) > time.Minute
+	const timeout = int64(time.Minute / time.Millisecond)
+	return time.Now().UnixMilli()-timeout > c.activeTime.Load()
 }
 
 func (c *Conn) Alive() bool {

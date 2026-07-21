@@ -32,17 +32,18 @@ type Data struct {
 	Option
 }
 
-
-
 type Rule struct {
-	id       string
-	group    string
-	comment  string
+	// 标识信息
+	id      string
+	group   string
+	comment string
+
+	// 匹配逻辑
 	accept   bool
 	priority int
 	enable   bool
 
-	// 动态解析
+	// 匹配信息
 	srcNets, dstNets   *container.Group[netip.Prefix, netip.Addr]
 	srcPorts, dstPorts *container.Range[uint16]
 	inDevs, outDevs    *container.Set[uint32]
@@ -59,18 +60,10 @@ type (
 
 func New(o *Option, devMap DevName2Index, protoMap Name2Protocol) (*Rule, error) {
 	r := &Rule{id: sid.New(12)}
-	if err := r.Update(o, devMap, protoMap); err != nil {
-		return nil, err
-	} else {
-		return r, nil
-	}
+	return r.Update(o, devMap, protoMap)
 }
 
 func Parse(d *Data, devMap DevName2Index, protoMap Name2Protocol) (*Rule, error) {
 	r := &Rule{id: d.ID}
-	if err := r.Update(&d.Option, devMap, protoMap); err != nil {
-		return nil, err
-	} else {
-		return r, nil
-	}
+	return r.Update(&d.Option, devMap, protoMap)
 }

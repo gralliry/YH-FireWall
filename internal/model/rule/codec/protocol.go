@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/google/gopacket/layers"
@@ -11,18 +12,20 @@ type (
 	Protocol2Name func(p layers.IPProtocol) (string, bool)
 )
 
-func ParseProtocol(raw string, mapper Name2Protocol) []layers.IPProtocol {
+func ParseProtocol(raw string, mapper Name2Protocol) ([]layers.IPProtocol, error) {
 	names := split(raw)
 	if len(names) == 0 {
-		return nil
+		return nil, nil
 	}
 	psl := make([]layers.IPProtocol, 0, len(names))
 	for _, name := range names {
-		if ps, exist := mapper(strings.ToLower(name)); exist {
-			psl = append(psl, ps)
+		ps, exist := mapper(strings.ToLower(name))
+		if !exist {
+			return nil, fmt.Errorf("invalid Protocol %s", name)
 		}
+		psl = append(psl, ps)
 	}
-	return psl
+	return psl, nil
 }
 
 func StringifyProtocol(ps []layers.IPProtocol, mapper Protocol2Name) string {

@@ -42,14 +42,12 @@ func (m *Manager) Close() error {
 
 func (m *Manager) Match(f *flow.Flow) (accept bool, exist bool) {
 	// 校验flow是否是连接包
-	if !f.IsConnection() {
+	if !f.IsConnPackage() {
 		return false, false
 	}
-	// 加锁
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	// 检查是否在table里面
+	m.mutex.RLock()
 	conn, exists := m.table.Get(f.Key())
+	m.mutex.RUnlock()
 	if !exists {
 		return false, false
 	}
@@ -78,15 +76,13 @@ func (m *Manager) Remove(id string) error {
 
 func (m *Manager) List() ([]*conn.Info, error) {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
 	// Step 1: 提取所有连接（values）
 	connList := m.table.Values()
+	m.mutex.RUnlock()
 	// Distinct 跳过重复的连接
 	connList = funcs.Filter(connList, func(c *conn.Conn) bool {
 		return !c.Expired() && !c.Closed()
 	})
-	// 映射到Info
-	infoList := make([]*conn.Info, 0)
 	// 查找所有连接
 	bconnList, err := nnet.Connections("inet")
 	if err != nil {
@@ -97,6 +93,8 @@ func (m *Manager) List() ([]*conn.Info, error) {
 	for _, conn := range connList {
 		connMap.Set(conn, conn.LKey(), conn.RKey())
 	}
+	// 映射到Info
+	infoList := make([]*conn.Info, 0)
 	for _, bc := range bconnList {
 		// 映射 socket type 到协议
 		var proto layers.IPProtocol
@@ -122,7 +120,7 @@ func (m *Manager) List() ([]*conn.Info, error) {
 }
 
 func (m *Manager) Push(f *flow.Flow) {
-	if !f.IsConnection() {
+	if !f.IsConnPackage() {
 		return
 	}
 	// 添加连接键

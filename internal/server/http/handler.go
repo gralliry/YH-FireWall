@@ -1,4 +1,3 @@
-//go:generate swag init -g handler.go -o docs --parseDependency --parseDepth 2
 
 package webserver
 
@@ -20,7 +19,7 @@ import (
 	_ "YH-FireWall/internal/model/conn"
 	_ "YH-FireWall/internal/model/itf"
 	"YH-FireWall/internal/model/rule"
-	_ "YH-FireWall/internal/server/webserver/docs"
+	_ "YH-FireWall/internal/server/http/docs"
 
 	"github.com/gofiber/fiber/v3"
 )

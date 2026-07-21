@@ -51,6 +51,10 @@ func New(config Config, logger *slog.Logger) (m *Manager, err error) {
 	})
 	// 加载配置
 	for _, rd := range rds {
+		if rd.ID == "" {
+			logger.Warn("rtable: skip rule", slog.String("error", "rule ID is empty"))
+			continue
+		}
 		rr, err := rule.Parse(rd, itfdev.Name2Index, protocol.Name2Protocol)
 		if err != nil {
 			logger.Warn("rtable: skip rule", slog.String("id", rd.ID), slog.String("error", err.Error()))
@@ -90,6 +94,7 @@ func (m *Manager) save() {
 	}
 	if err := m.file.Write(buf); err != nil {
 		m.logger.Error("rtable: failed to persist rules", slog.String("error", err.Error()))
+		return
 	}
 }
 
@@ -110,16 +115,19 @@ func (m *Manager) Create(ro *rule.Option) (string, error) {
 
 func (m *Manager) Update(id string, ro *rule.Option) error {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	// 移除
 	rr, exists := m.rules.Delete(id)
 	if !exists {
 		return fmt.Errorf("rule %s not exists", id)
 	}
-	// 再添加
-	defer m.rules.Insert(id, rr)
 	// 更新
-	if err := rr.Update(ro, itfdev.Name2Index, protocol.Name2Protocol); err != nil {
+	rr, err := rr.Update(ro, itfdev.Name2Index, protocol.Name2Protocol)
+	// 再添加
+	m.rules.Insert(id, rr)
+	//
+	m.mutex.Unlock()
+	// 错误返回
+	if err != nil {
 		return err
 	}
 	// 持久化
@@ -129,9 +137,9 @@ func (m *Manager) Update(id string, ro *rule.Option) error {
 
 func (m *Manager) Delete(id string) error {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	// 获取
 	_, ok := m.rules.Delete(id)
+	m.mutex.Unlock()
 	if !ok {
 		return fmt.Errorf("rule %s not exists", id)
 	}
@@ -142,9 +150,8 @@ func (m *Manager) Delete(id string) error {
 
 func (m *Manager) Search(id string) *rule.Data {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	//
 	rr, exists := m.rules.Search(id)
+	m.mutex.RUnlock()
 	if !exists {
 		return nil
 	}

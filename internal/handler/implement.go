@@ -27,10 +27,10 @@ func (h *Handler) ListRules() []*rule.Data {
 
 // 连接模块
 func (h *Handler) ListConnections() ([]*conn.Info, error) {
-	return h.conner.List()
+	return h.connecter.List()
 }
 func (h *Handler) CloseConnection(id string) error {
-	return h.conner.Remove(id)
+	return h.connecter.Remove(id)
 }
 
 // 配置模块

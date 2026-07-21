@@ -18,13 +18,13 @@ func (h *Handler) Handle(a *nfqueue.Attribute) (accept bool, ok bool) {
 	// 回收flow
 	defer flow.Release(f)
 	// 匹配 并 更新 连接
-	if accept, exist := h.conner.Match(f); exist {
+	if accept, exist := h.connecter.Match(f); exist {
 		return accept, true
 	}
 	// 匹配规则表
 	accept = h.ruler.Match(f)
 	if accept {
-		h.conner.Push(f)
+		h.connecter.Push(f)
 	}
 	return accept, true
 }

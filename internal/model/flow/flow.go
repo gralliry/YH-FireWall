@@ -39,7 +39,7 @@ type Flow struct {
 	OutDev uint32
 }
 
-func New(a *nfqueue.Attribute) (*Flow, bool) {
+func New(a *nfqueue.Attribute) (f *Flow, ok bool) {
 	// a 一定不为空
 	if a.Payload == nil {
 		return nil, false
@@ -50,7 +50,14 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 	}
 
 	// 解析到flow
-	f := pool.Get().(*Flow)
+	f = pool.Get().(*Flow)
+
+	defer func() {
+		if !ok {
+			Release(f)
+		}
+	}()
+
 	f.InDev = 0
 	f.OutDev = 0
 	if a.InDev != nil {
@@ -62,20 +69,6 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 
 	// 判断 ip 协议
 	var packet gopacket.Packet
-	detectProto := func(fallback layers.IPProtocol) layers.IPProtocol {
-		switch {
-		case packet.Layer(layers.LayerTypeTCP) != nil:
-			return layers.IPProtocolTCP
-		case packet.Layer(layers.LayerTypeUDP) != nil:
-			return layers.IPProtocolUDP
-		case packet.Layer(layers.LayerTypeSCTP) != nil:
-			return layers.IPProtocolSCTP
-		case packet.Layer(layers.LayerTypeUDPLite) != nil:
-			return layers.IPProtocolUDPLite
-		default:
-			return fallback
-		}
-	}
 	switch payload[0] >> 4 {
 	case 4:
 		packet = gopacket.NewPacket(payload, layers.LayerTypeIPv4, gopacket.DecodeOptions{
@@ -84,15 +77,13 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 		})
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
-			Release(f)
 			return nil, false
 		}
 		layer := ipLayer.(*layers.IPv4)
 		if !setIP(f, layer.SrcIP, layer.DstIP) {
-			Release(f)
 			return nil, false
 		}
-		f.Protocol = detectProto(layer.Protocol)
+		f.Protocol = detectProto(packet, layer.Protocol)
 	case 6:
 		packet = gopacket.NewPacket(payload, layers.LayerTypeIPv6, gopacket.DecodeOptions{
 			Lazy:   true,
@@ -100,25 +91,21 @@ func New(a *nfqueue.Attribute) (*Flow, bool) {
 		})
 		ipLayer := packet.Layer(layers.LayerTypeIPv6)
 		if ipLayer == nil {
-			Release(f)
 			return nil, false
 		}
 		layer := ipLayer.(*layers.IPv6)
 		if !setIP(f, layer.SrcIP, layer.DstIP) {
-			Release(f)
 			return nil, false
 		}
-		f.Protocol = detectProto(layer.NextHeader)
+		f.Protocol = detectProto(packet, layer.NextHeader)
 	default:
-		Release(f)
 		return nil, false
 	}
 
 	// 判断传输层协议
-	var ok bool
-	f.SrcPort, f.DstPort, f.HasPort, ok = extractPort(packet, f.Protocol)
-	if !ok {
-		Release(f)
+	var success bool
+	f.SrcPort, f.DstPort, f.HasPort, success = extractPort(packet, f.Protocol)
+	if !success {
 		return nil, false
 	}
 
@@ -135,7 +122,7 @@ func (f *Flow) Key() string {
 	return fmt.Sprintf("%s-%s-%s", f.Protocol, f.SrcAddrPort(), f.DstAddrPort())
 }
 
-func (f *Flow) IsConnection() bool {
+func (f *Flow) IsConnPackage() bool {
 	return f.Protocol == layers.IPProtocolTCP || f.Protocol == layers.IPProtocolUDP
 }
 

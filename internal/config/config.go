@@ -3,8 +3,8 @@ package config
 import (
 	"YH-FireWall/internal/queue"
 	"YH-FireWall/internal/rtable"
-	"YH-FireWall/internal/server/cmdserver"
-	"YH-FireWall/internal/server/webserver"
+	"YH-FireWall/internal/server/cmd"
+	"YH-FireWall/internal/server/http"
 )
 
 type Config struct {

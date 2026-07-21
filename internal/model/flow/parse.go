@@ -25,6 +25,21 @@ func setIP(f *Flow, src, dst net.IP) bool {
 	return true
 }
 
+func detectProto(packet gopacket.Packet, fallback layers.IPProtocol) layers.IPProtocol {
+	switch {
+	case packet.Layer(layers.LayerTypeTCP) != nil:
+		return layers.IPProtocolTCP
+	case packet.Layer(layers.LayerTypeUDP) != nil:
+		return layers.IPProtocolUDP
+	case packet.Layer(layers.LayerTypeSCTP) != nil:
+		return layers.IPProtocolSCTP
+	case packet.Layer(layers.LayerTypeUDPLite) != nil:
+		return layers.IPProtocolUDPLite
+	default:
+		return fallback
+	}
+}
+
 func extractPort(packet gopacket.Packet, proto layers.IPProtocol) (uint16, uint16, bool, bool) {
 	switch proto {
 	case layers.IPProtocolTCP:
