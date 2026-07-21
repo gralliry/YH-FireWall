@@ -41,7 +41,7 @@ jobs:
       - name: Build binaries
         run: |
           mkdir -p build
-          for arch in amd64 arm64 arm; do
+          for arch in amd64 arm64 arm 386; do
             echo "Building linux/$arch..."
             GOARCH=$arch go build -o "build/yfwd.$arch" ./cmd/yfwd
             GOARCH=$arch go build -o "build/yfw.$arch" ./cmd/yfw
@@ -50,7 +50,7 @@ jobs:
       - name: Package releases
         run: |
           cd build
-          for arch in amd64 arm64 arm; do
+          for arch in amd64 arm64 arm 386; do
             echo "Packaging yfw-linux-$arch..."
             mkdir -p "yfw-linux-$arch"
             cp "yfwd.$arch" "yfw-linux-$arch/yfwd"
