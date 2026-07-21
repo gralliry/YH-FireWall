@@ -69,13 +69,13 @@ func (f *CacheFile) Write(buf []byte) error {
 }
 
 func (f *CacheFile) handle() {
+	tmpfile := f.path + ".tmp"
 	for range f.dirty {
 		// 不要使用Read()去替换这里
 		f.mutex.RLock()
 		buf := bytes.Clone(f.cache)
 		f.mutex.RUnlock()
 		// 文件写入不用加锁，f.dirty保证了唯一操作
-		tmpfile := f.path + ".tmp"
 		if err := os.WriteFile(tmpfile, buf, 0644); err != nil {
 			continue
 		}
@@ -84,12 +84,13 @@ func (f *CacheFile) handle() {
 			continue
 		}
 	}
+	os.Remove(tmpfile)
 }
 
 func (f *CacheFile) Close() {
 	f.close.Do(func() {
 		f.mutex.Lock()
-		f.closed = false
+		f.closed = true
 		close(f.dirty)
 		f.mutex.Unlock()
 		f.waitg.Wait()

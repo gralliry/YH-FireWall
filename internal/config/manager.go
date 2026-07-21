@@ -20,7 +20,7 @@ type Manager struct {
 	logger *slog.Logger
 }
 
-func New(path string, logger *slog.Logger) (*Manager, error) {
+func New(path string, logger *slog.Logger) (m *Manager, err error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve path: %w", err)
@@ -29,6 +29,12 @@ func New(path string, logger *slog.Logger) (*Manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config file: %w", err)
 	}
+	defer func() {
+		// 返回错误时关闭
+		if err != nil {
+			file.Close()
+		}
+	}()
 	// 读取数据流
 	buf := file.Read()
 	// 当不为空时，验证buf合法性

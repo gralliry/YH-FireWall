@@ -1,7 +1,6 @@
 package rtable
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -22,18 +21,20 @@ type Manager struct {
 
 	rules *indexedmap.IndexedMap[string, *rule.Rule]
 	file  *cfile.CacheFile
-	//
-	ctx    context.Context
-	cancel context.CancelFunc
 
 	logger *slog.Logger
 }
 
-func New(config Config, logger *slog.Logger) (*Manager, error) {
+func New(config Config, logger *slog.Logger) (m *Manager, err error) {
 	file, err := cfile.Open(config.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open rule file: %w", err)
 	}
+	defer func() {
+		if err != nil {
+			file.Close()
+		}
+	}()
 	buf := file.Read()
 	rds := make([]*rule.Data, 0)
 	if len(buf) > 0 {
@@ -57,22 +58,18 @@ func New(config Config, logger *slog.Logger) (*Manager, error) {
 		}
 		rules.Insert(rd.ID, rr)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{
+	return &Manager{
 		config: config,
 		rules:  rules,
 		file:   file,
 
-		ctx:    ctx,
-		cancel: cancel,
 		logger: logger,
-	}
-	return m, nil
+	}, nil
 }
 
 func (m *Manager) Close() error {
-	m.cancel()
-	// 等待线程
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	m.file.Close()
 	return nil
 }
@@ -88,11 +85,11 @@ func (m *Manager) save() {
 	rds := m.list()
 	buf, err := json.Marshal(rds)
 	if err != nil {
+		m.logger.Error("rtable: failed to marshal rules", slog.String("error", err.Error()))
 		return
 	}
-	err = m.file.Write(buf)
-	if err != nil {
-		return
+	if err := m.file.Write(buf); err != nil {
+		m.logger.Error("rtable: failed to persist rules", slog.String("error", err.Error()))
 	}
 }
 
@@ -119,11 +116,12 @@ func (m *Manager) Update(id string, ro *rule.Option) error {
 	if !exists {
 		return fmt.Errorf("rule %s not exists", id)
 	}
+	// 再添加
+	defer m.rules.Insert(id, rr)
+	// 更新
 	if err := rr.Update(ro, itfdev.Name2Index, protocol.Name2Protocol); err != nil {
 		return err
 	}
-	// 再添加
-	m.rules.Insert(id, rr)
 	// 持久化
 	m.save()
 	return nil
